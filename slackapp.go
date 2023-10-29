@@ -11,10 +11,6 @@ import (
 	"github.com/slack-go/slack/socketmode"
 )
 
-type App interface {
-	Run(func(ev EventState) error) error
-}
-
 func NewSlackApp(botToken string, appToken string) (*slackApp, error) {
 	if !strings.HasPrefix(botToken, "xoxb-") {
 		return nil, fmt.Errorf("bot token must be the token with prefix 'xoxb-'")
@@ -57,17 +53,18 @@ func (s *slackApp) Run(handler func(ev EventState) error) error {
 				continue // Move on without acknowledging, will force a repeat
 			}
 			if evt.Request != nil {
-				if modal := es.interaction.renderModal(); modal != nil {
-					_, err := s.client.OpenView(es.interaction.triggerID, *modal)
+				if modal := es.modal.render(); modal != nil {
+					_, err := s.client.OpenView(es.modal.triggerID, *modal)
 					if err != nil {
 						log.Printf("handling event: %v", err)
 						continue
 					}
 				}
 				var payload interface{} = map[string]interface{}{}
-				if es.interaction != nil {
-					payload = es.interaction.payload()
-				}
+				// TODO: Implement a response
+				// if es.interaction != nil {
+				// 	payload = es.interaction.payload()
+				// }
 				s.client.Ack(*evt.Request, payload)
 			}
 		}
@@ -75,26 +72,22 @@ func (s *slackApp) Run(handler func(ev EventState) error) error {
 	return s.client.Run()
 }
 
-type EventState interface {
-	ReceiveMessage() *Message
-	SlashCommand(command string) Interaction
-}
-
-type Interaction interface {
-	// TODO: Refactor so that interactions create a separate object for handling modals, messages, etc
-	Modal(string)
-	Text(string)
-}
-
-type Message struct {
-	UserID string
-	Text   string
-}
-
 type interactionSlack struct {
 	triggerID string
 
-	modal bool
+	parent *eventStateSlack
+}
+
+func (is *interactionSlack) Modal(title string) Modal {
+	is.parent.modal = &modalSlack{
+		triggerID: is.triggerID,
+		title:     title,
+	}
+	return is.parent.modal
+}
+
+type modalSlack struct {
+	triggerID string
 
 	// modal only
 	title string
@@ -102,58 +95,39 @@ type interactionSlack struct {
 	blocks []slack.Block
 }
 
-func (is *interactionSlack) Modal(title string) {
-	is.modal = true
-	is.title = title
-}
-
-func (is *interactionSlack) Text(message string) {
-	is.blocks = append(is.blocks, slack.NewSectionBlock(
+func (m *modalSlack) Text(message string) {
+	m.blocks = append(m.blocks, slack.NewSectionBlock(
 		&slack.TextBlockObject{
 			Type: slack.MarkdownType,
 			Text: message,
 		},
 		nil,
 		nil,
-		// slack.NewAccessory(
-		// 	slack.NewButtonBlockElement(
-		// 		"",
-		// 		"somevalue",
-		// 		&slack.TextBlockObject{
-		// 			Type: slack.PlainTextType,
-		// 			Text: "bar",
-		// 		},
-		// 	),
-		// ),
 	))
 }
 
-func (is *interactionSlack) renderModal() *slack.ModalViewRequest {
-	if is == nil {
-		return nil
-	}
-	if !is.modal {
+func (m *modalSlack) Select(text string, options []string) string {
+	panic("not implemented")
+}
+
+func (m *modalSlack) Submit(text string) bool {
+	panic("not imlemented")
+}
+
+func (m *modalSlack) render() *slack.ModalViewRequest {
+	if m == nil {
 		return nil
 	}
 	modal := &slack.ModalViewRequest{
 		Type:  slack.ViewType("modal"),
-		Title: slack.NewTextBlockObject(slack.PlainTextType, is.title, false, false),
+		Title: slack.NewTextBlockObject(slack.PlainTextType, m.title, false, false),
 		Close: slack.NewTextBlockObject(slack.PlainTextType, "Cancel", false, false),
 		//Submit: slack.NewTextBlockObject(slack.PlainTextType, submitText, false, false),
 		Blocks: slack.Blocks{
-			BlockSet: is.blocks,
+			BlockSet: m.blocks,
 		},
 	}
 	return modal
-}
-
-func (is *interactionSlack) payload() interface{} {
-	if is.modal {
-		return nil
-	}
-	return map[string]interface{}{
-		"blocks": is.blocks,
-	}
 }
 
 func parseSlackEvent(ev socketmode.Event) *eventStateSlack {
@@ -165,8 +139,8 @@ func parseSlackEvent(ev socketmode.Event) *eventStateSlack {
 type eventStateSlack struct {
 	event socketmode.Event
 
-	interaction   *interactionSlack
-	messageOutbox []Message
+	interaction *interactionSlack
+	modal       *modalSlack
 }
 
 func (e *eventStateSlack) ReceiveMessage() *Message {
@@ -193,7 +167,7 @@ func (e *eventStateSlack) ReceiveMessage() *Message {
 	return nil
 }
 
-func (e *eventStateSlack) SlashCommand(command string) Interaction {
+func (e *eventStateSlack) SlashCommand(command string) SlashCommand {
 	if e.event.Type != socketmode.EventTypeSlashCommand {
 		return nil
 	}
@@ -204,6 +178,7 @@ func (e *eventStateSlack) SlashCommand(command string) Interaction {
 
 	if cmd.Command == command {
 		e.interaction = &interactionSlack{
+			parent:    e,
 			triggerID: cmd.TriggerID,
 		}
 		return e.interaction

@@ -29,10 +29,10 @@ func handler(ev EventState) error {
 			fmt.Println("got a hello")
 		}
 	}
-	if interaction := ev.SlashCommand("/testslash"); interaction != nil {
+	if testSlash := ev.SlashCommand("/testslash"); testSlash != nil {
 		fmt.Println("Slash command received")
-		interaction.Modal("My Modal")
-		interaction.Text("Got your slash command")
+		modal := testSlash.Modal("My Modal")
+		modal.Text("Got your slash command")
 	}
 	return nil
 }

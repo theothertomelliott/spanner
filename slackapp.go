@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -56,7 +57,11 @@ func (s *slackApp) Run(handler func(ev EventState) error) error {
 				if modal := es.modal.render(); modal != nil {
 					_, err := s.client.OpenView(es.modal.triggerID, *modal)
 					if err != nil {
-						log.Printf("handling event: %v", err)
+						modalContent, jsonErr := json.MarshalIndent(modal, "", "  ")
+						if jsonErr != nil {
+							log.Println(jsonErr)
+						}
+						log.Printf("opening view: %v\n%v\n", err, string(modalContent))
 						continue
 					}
 				}
@@ -92,6 +97,8 @@ type modalSlack struct {
 	// modal only
 	title string
 
+	inputID int
+
 	blocks []slack.Block
 }
 
@@ -107,7 +114,41 @@ func (m *modalSlack) Text(message string) {
 }
 
 func (m *modalSlack) Select(text string, options []string) string {
-	panic("not implemented")
+	var optionObjects []*slack.OptionBlockObject
+	for index, option := range options {
+		optionObjects = append(
+			optionObjects,
+			slack.NewOptionBlockObject(
+				fmt.Sprintf("input%voption%v", m.inputID, index),
+				slack.NewTextBlockObject(slack.PlainTextType, option, false, false),
+				nil,
+			),
+		)
+	}
+
+	input := slack.NewInputBlock(
+		fmt.Sprintf("input%v", m.inputID),
+		slack.NewTextBlockObject(slack.PlainTextType, text, false, false),
+		nil,
+		slack.NewOptionsSelectBlockElement(
+			slack.OptTypeStatic,
+			slack.NewTextBlockObject(slack.PlainTextType, text, false, false),
+			fmt.Sprintf("input%vselection", m.inputID),
+			optionObjects...,
+		),
+	)
+	input.DispatchAction = true
+
+	m.blocks = append(m.blocks,
+		input,
+	)
+	m.inputID++
+
+	// TODO: Empty options may not render
+	if len(options) > 0 {
+		return options[0]
+	}
+	return ""
 }
 
 func (m *modalSlack) Submit(text string) bool {
@@ -122,15 +163,22 @@ func (m *modalSlack) render() *slack.ModalViewRequest {
 		Type:  slack.ViewType("modal"),
 		Title: slack.NewTextBlockObject(slack.PlainTextType, m.title, false, false),
 		Close: slack.NewTextBlockObject(slack.PlainTextType, "Cancel", false, false),
-		//Submit: slack.NewTextBlockObject(slack.PlainTextType, submitText, false, false),
+
+		// TODO: Should be controlled by the submit option
+		// It should error out with a meaningful message if there are inputs but no submit button
+		Submit: slack.NewTextBlockObject(slack.PlainTextType, "Submit", false, false),
+
 		Blocks: slack.Blocks{
 			BlockSet: m.blocks,
 		},
+
+		CallbackID: "slackFrameworkModal1", // TODO: Change this
 	}
 	return modal
 }
 
 func parseSlackEvent(ev socketmode.Event) *eventStateSlack {
+	fmt.Printf("Event Type: %v\n", ev.Type)
 	return &eventStateSlack{
 		event: ev,
 	}

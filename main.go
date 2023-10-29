@@ -33,6 +33,25 @@ func handler(ev EventState) error {
 		fmt.Println("Slash command received")
 		modal := testSlash.Modal("My Modal")
 		modal.Text("Got your slash command")
+		tensOptions := []string{}
+		for i := 0; i < 10; i++ {
+			tensOptions = append(tensOptions, fmt.Sprint(i))
+		}
+		tensOutput := modal.Select("Tens", tensOptions)
+		fmt.Println(tensOutput)
+
+		// unitsOptions := []string{}
+		// for i := 0; i < 10; i++ {
+		// 	tensPrefix := tensOutput
+		// 	if tensPrefix == "0" {
+		// 		tensPrefix = ""
+		// 	}
+		// 	unitsOptions = append(unitsOptions, fmt.Sprintf("%v%v", tensPrefix, i))
+		// }
+
+		// unitsOutput := modal.Select("Units", unitsOptions)
+		// fmt.Println(unitsOutput)
+
 	}
 	return nil
 }

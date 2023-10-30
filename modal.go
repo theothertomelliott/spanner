@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/sha1"
 	"fmt"
+	"strings"
 
 	"github.com/slack-go/slack"
 )
@@ -56,8 +58,10 @@ func (m *modalSlack) Select(text string, options []string) string {
 		m.inputID++
 	}()
 
+	optionHash := Hashstr(strings.Join(options, ","))
+
 	var (
-		inputBlockID     string = fmt.Sprintf("input%v", m.inputID)
+		inputBlockID     string = fmt.Sprintf("input-%v-%v", optionHash, m.inputID)
 		inputSelectionID string = fmt.Sprintf("input%vselection", m.inputID)
 	)
 
@@ -94,7 +98,6 @@ func (m *modalSlack) Select(text string, options []string) string {
 	if m.ReceivedView != nil {
 		viewState := m.ReceivedView.State.Values
 		if viewState[inputBlockID][inputSelectionID].SelectedOption.Text != nil {
-			// TODO: Check if the selected option isn't one of the possible values
 			return viewState[inputBlockID][inputSelectionID].SelectedOption.Text.Text
 		}
 	}
@@ -107,5 +110,14 @@ func (m *modalSlack) Select(text string, options []string) string {
 }
 
 func (m *modalSlack) Submit(text string) bool {
-	panic("not imlemented")
+	panic("not implemented")
+}
+
+// Get sha1 from string
+func Hashstr(Txt string) string {
+	h := sha1.New()
+	h.Write([]byte(Txt))
+	bs := h.Sum(nil)
+	sh := string(fmt.Sprintf("%x\n", bs))
+	return sh
 }

@@ -1,4 +1,4 @@
-module github.com/theothertomelliott/chat-framework
+module github.com/theothertomelliott/chatframework
 
 go 1.21.2
 

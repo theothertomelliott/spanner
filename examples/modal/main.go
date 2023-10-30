@@ -4,13 +4,15 @@ import (
 	"fmt"
 	"log"
 	"os"
+
+	"github.com/theothertomelliott/chatframework"
 )
 
 func main() {
 	botToken := os.Getenv("SLACK_BOT_TOKEN")
 	appToken := os.Getenv("SLACK_APP_TOKEN")
 
-	app, err := NewSlackApp(botToken, appToken)
+	app, err := chatframework.NewSlackApp(botToken, appToken)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -21,7 +23,7 @@ func main() {
 	}
 }
 
-func handler(ev EventState) error {
+func handler(ev chatframework.EventState) error {
 	if msg := ev.ReceiveMessage(); msg != nil {
 		fmt.Println("Received a message:", msg.Text)
 		if msg.Text == "hello" {
@@ -32,6 +34,12 @@ func handler(ev EventState) error {
 	if testSlash := ev.SlashCommand("/testslash"); testSlash != nil {
 		fmt.Println("Handling /testslash")
 		modal := testSlash.Modal("My Modal")
+
+		if modal.Close("Cancel") {
+			fmt.Println("Closed")
+			return nil
+		}
+
 		modal.Text("Got your slash command")
 		tensOptions := []string{}
 		for i := 0; i < 10; i++ {

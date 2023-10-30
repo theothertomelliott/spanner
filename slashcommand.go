@@ -1,4 +1,4 @@
-package main
+package chatframework
 
 type slashCommandSlack struct {
 	TriggerID     string      `json:"trigger_id"`

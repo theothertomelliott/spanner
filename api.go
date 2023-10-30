@@ -1,4 +1,4 @@
-package main
+package chatframework
 
 type App interface {
 	Run(func(ev EventState) error) error
@@ -22,6 +22,7 @@ type Modal interface {
 	Text(message string)
 	Select(title string, options []string) string
 	Submit(title string) bool
+	Close(title string) bool
 }
 
 type Message struct {

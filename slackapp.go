@@ -1,4 +1,4 @@
-package main
+package chatframework
 
 import (
 	"encoding/json"
@@ -63,13 +63,14 @@ func (s *slackApp) Run(handler func(ev EventState) error) error {
 						}
 						modal.PrivateMetadata = string(metadata)
 
-						if !es.isAction {
+						switch update := slashCommand.ModalInternal.update; update {
+						case created:
 							_, err = s.client.OpenView(slashCommand.TriggerID, *modal)
 							if err != nil {
 								log.Printf("opening view: %v\n", err)
 								continue
 							}
-						} else {
+						case action:
 							_, err := s.client.UpdateView(
 								*modal,
 								slashCommand.ModalInternal.ReceivedView.ExternalID,

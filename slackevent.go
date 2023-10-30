@@ -1,8 +1,7 @@
-package main
+package chatframework
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
@@ -10,8 +9,7 @@ import (
 )
 
 type eventSlack struct {
-	isAction bool
-	hash     string
+	hash string
 
 	state eventState
 }
@@ -62,8 +60,6 @@ func parseSlackEvent(ev socketmode.Event) *eventSlack {
 			return out
 		}
 
-		fmt.Println(interactionCallbackEvent.Type)
-
 		out.hash = interactionCallbackEvent.Hash
 
 		if metadata := interactionCallbackEvent.View.PrivateMetadata; metadata != "" {
@@ -73,12 +69,17 @@ func parseSlackEvent(ev socketmode.Event) *eventSlack {
 			}
 			if out.state.SlashCommand != nil {
 				out.state.SlashCommand.ModalInternal.ReceivedView = &interactionCallbackEvent.View
+				if interactionCallbackEvent.Type == slack.InteractionTypeBlockActions {
+					out.state.SlashCommand.ModalInternal.update = action
+				}
 				if interactionCallbackEvent.Type == slack.InteractionTypeViewSubmission {
-					out.state.SlashCommand.ModalInternal.submitted = true
+					out.state.SlashCommand.ModalInternal.update = submitted
+				}
+				if interactionCallbackEvent.Type == slack.InteractionTypeViewClosed {
+					out.state.SlashCommand.ModalInternal.update = closed
 				}
 			}
 		}
-		out.isAction = true
 	}
 	return out
 }

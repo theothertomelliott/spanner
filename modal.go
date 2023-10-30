@@ -12,8 +12,8 @@ type modalSlack struct {
 	// modal only
 	Title string `json:"title"`
 
-	Blocks        []slack.Block                           `json:"-"`
-	ReceivedState map[string]map[string]slack.BlockAction `json:"-"`
+	Blocks       []slack.Block `json:"-"`
+	ReceivedView *slack.View   `json:"-"`
 
 	inputID int
 }
@@ -91,8 +91,12 @@ func (m *modalSlack) Select(text string, options []string) string {
 		input,
 	)
 
-	if m.ReceivedState != nil && m.ReceivedState[inputBlockID][inputSelectionID].SelectedOption.Text != nil {
-		return m.ReceivedState[inputBlockID][inputSelectionID].SelectedOption.Text.Text
+	if m.ReceivedView != nil {
+		viewState := m.ReceivedView.State.Values
+		if viewState[inputBlockID][inputSelectionID].SelectedOption.Text != nil {
+			// TODO: Check if the selected option isn't one of the possible values
+			return viewState[inputBlockID][inputSelectionID].SelectedOption.Text.Text
+		}
 	}
 
 	// TODO: Empty options may not render

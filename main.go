@@ -40,18 +40,20 @@ func handler(ev EventState) error {
 		tensOutput := modal.Select("Tens", tensOptions)
 		fmt.Println("Tens:", tensOutput)
 
-		unitsOptions := []string{}
-		for i := 0; i < 10; i++ {
-			tensPrefix := tensOutput
-			if tensPrefix == "0" {
-				tensPrefix = ""
+		if tensOutput != "0" {
+
+			unitsOptions := []string{}
+			for i := 0; i < 10; i++ {
+				tensPrefix := tensOutput
+				if tensPrefix == "0" {
+					tensPrefix = ""
+				}
+				unitsOptions = append(unitsOptions, fmt.Sprintf("%v%v", tensPrefix, i))
 			}
-			unitsOptions = append(unitsOptions, fmt.Sprintf("%v%v", tensPrefix, i))
+
+			unitsOutput := modal.Select("Units", unitsOptions)
+			fmt.Println("Units:", unitsOutput)
 		}
-
-		unitsOutput := modal.Select("Units", unitsOptions)
-		fmt.Println("Units:", unitsOutput)
-
 	}
 	return nil
 }

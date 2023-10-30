@@ -53,30 +53,42 @@ func (s *slackApp) Run(handler func(ev EventState) error) error {
 				continue // Move on without acknowledging, will force a repeat
 			}
 			if evt.Request != nil {
+				var payload interface{} = map[string]interface{}{}
+
 				if slashCommand := es.state.SlashCommand; slashCommand != nil {
-					if modal := slashCommand.ModalInternal.render(); !es.isAction && modal != nil {
+					if modal := slashCommand.ModalInternal.render(); modal != nil {
 						metadata, err := json.MarshalIndent(es.state, "", "  ")
 						if err != nil {
 							log.Printf("saving metadata: %v\n", err)
 						}
 						modal.PrivateMetadata = string(metadata)
-						_, err = s.client.OpenView(slashCommand.TriggerID, *modal)
-						if err != nil {
-							modalContent, jsonErr := json.MarshalIndent(modal, "", "  ")
-							if jsonErr != nil {
-								log.Println(jsonErr)
+
+						if !es.isAction {
+							_, err = s.client.OpenView(slashCommand.TriggerID, *modal)
+							if err != nil {
+								log.Printf("opening view: %v\n", err)
+								continue
 							}
-							log.Printf("opening view: %v\n%v\n", err, string(modalContent))
-							continue
+						} else {
+							_, err := s.client.UpdateView(
+								*modal,
+								slashCommand.ModalInternal.ReceivedView.ExternalID,
+								es.hash,
+								slashCommand.ModalInternal.ReceivedView.ID,
+							)
+							if err != nil {
+								log.Printf("updating view: %v", err)
+								continue
+							}
+
+							// TODO: Do this for submission events if we want to create a new view
+							// Maybe we want to use push as well
+							//payload = slack.NewUpdateViewSubmissionResponse(modal)
 						}
 					}
-					var payload interface{} = map[string]interface{}{}
-					// TODO: Implement a response
-					// if es.interaction != nil {
-					// 	payload = es.interaction.payload()
-					// }
-					s.client.Ack(*evt.Request, payload)
 				}
+
+				s.client.Ack(*evt.Request, payload)
 			}
 		}
 	}()

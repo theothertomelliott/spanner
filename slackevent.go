@@ -11,6 +11,7 @@ import (
 
 type eventSlack struct {
 	isAction bool
+	hash     string
 
 	state eventState
 }
@@ -62,13 +63,17 @@ func parseSlackEvent(ev socketmode.Event) *eventSlack {
 			return out
 		}
 
+		fmt.Println(interactionCallbackEvent.Type)
+
+		out.hash = interactionCallbackEvent.Hash
+
 		if metadata := interactionCallbackEvent.View.PrivateMetadata; metadata != "" {
 			err := json.Unmarshal([]byte(metadata), &out.state)
 			if err != nil {
 				panic(err)
 			}
 			if out.state.SlashCommand != nil {
-				out.state.SlashCommand.ModalInternal.ReceivedState = interactionCallbackEvent.View.State.Values
+				out.state.SlashCommand.ModalInternal.ReceivedView = &interactionCallbackEvent.View
 			}
 		}
 		out.isAction = true

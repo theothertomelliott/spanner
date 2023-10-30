@@ -2,19 +2,27 @@ package chatframework
 
 import (
 	"crypto/sha1"
+	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/slack-go/slack"
+	"github.com/slack-go/slack/socketmode"
 )
 
 type modalSlack struct {
 	Title string `json:"title"`
 
-	Blocks       []slack.Block `json:"-"`
-	ReceivedView *slack.View   `json:"-"`
+	Blocks         []slack.Block    `json:"-"`
+	ReceivedView   *slack.View      `json:"-"`
+	SubmittedState *slack.ViewState `json:"submitted_state"`
 
-	inputID int
+	parentModal *modalSlack
+	NextModal   *modalSlack `json:"next_modal"`
+
+	inputID   int
+	triggerID string
 
 	update updateType
 
@@ -54,6 +62,13 @@ func (m *modalSlack) render() *slack.ModalViewRequest {
 	}
 
 	return modal
+}
+
+func (m *modalSlack) state() *slack.ViewState {
+	if m.ReceivedView != nil {
+		return m.ReceivedView.State
+	}
+	return m.SubmittedState
 }
 
 func (m *modalSlack) Text(message string) {
@@ -109,8 +124,8 @@ func (m *modalSlack) Select(text string, options []string) string {
 		input,
 	)
 
-	if m.ReceivedView != nil {
-		viewState := m.ReceivedView.State.Values
+	if state := m.state(); state != nil {
+		viewState := state.Values
 		if viewState[inputBlockID][inputSelectionID].SelectedOption.Text != nil {
 			return viewState[inputBlockID][inputSelectionID].SelectedOption.Text.Text
 		}
@@ -121,12 +136,101 @@ func (m *modalSlack) Select(text string, options []string) string {
 
 func (m *modalSlack) Submit(text string) bool {
 	m.submitText = &text
+
+	// Definitely submitted if a new modal has been pushed
+	if m.NextModal != nil {
+		return true
+	}
+
 	return m.update == submitted
 }
 
 func (m *modalSlack) Close(text string) bool {
 	m.closeText = &text
 	return m.update == closed
+}
+
+func (m *modalSlack) Push(title string) Modal {
+	if m == nil {
+		return nil
+	}
+
+	if m.NextModal != nil {
+		return m.NextModal
+	}
+
+	m.SubmittedState = m.ReceivedView.State
+
+	m.NextModal = &modalSlack{
+		Title:       title,
+		parentModal: m,
+	}
+	return m.NextModal
+}
+
+func (m *modalSlack) handleRequest(req *socketmode.Request, es *eventSlack, client *socketmode.Client) error {
+	if m.NextModal != nil {
+		return m.NextModal.handleRequest(req, es, client)
+	}
+
+	modal := m.render()
+	metadata, err := json.Marshal(es.state)
+	if err != nil {
+		log.Printf("saving metadata: %v\n", err)
+	}
+	modal.PrivateMetadata = string(metadata)
+
+	var payload interface{} = map[string]interface{}{}
+
+	switch update := m.update; update {
+	case created:
+		if m.parentModal == nil {
+			_, err = client.OpenView(m.triggerID, *modal)
+			if err != nil {
+				return fmt.Errorf("opening view: %w", err)
+			}
+		} else if m.parentModal.update == submitted {
+			payload = slack.NewPushViewSubmissionResponse(modal)
+		} else {
+			_, err = client.PushView(m.triggerID, *modal)
+			if err != nil {
+				return fmt.Errorf("opening view: %w", err)
+			}
+		}
+	case action:
+		_, err := client.UpdateView(
+			*modal,
+			m.ReceivedView.ExternalID,
+			es.hash,
+			m.ReceivedView.ID,
+		)
+		if err != nil {
+			return fmt.Errorf("updating view: %w", err)
+		}
+	}
+
+	client.Ack(*req, payload)
+
+	return nil
+}
+
+func (m *modalSlack) populateEvent(interaction slack.InteractionType, view *slack.View) error {
+	if m.NextModal != nil {
+		return m.NextModal.populateEvent(interaction, view)
+	}
+
+	m.ReceivedView = view
+	if interaction == slack.InteractionTypeBlockActions {
+		m.update = action
+	}
+	if interaction == slack.InteractionTypeViewSubmission {
+		m.update = submitted
+	}
+	if interaction == slack.InteractionTypeViewClosed {
+		m.update = closed
+	}
+
+	return nil
 }
 
 // Get sha1 from string

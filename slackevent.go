@@ -68,16 +68,7 @@ func parseSlackEvent(ev socketmode.Event) *eventSlack {
 				panic(err)
 			}
 			if out.state.SlashCommand != nil {
-				out.state.SlashCommand.ModalInternal.ReceivedView = &interactionCallbackEvent.View
-				if interactionCallbackEvent.Type == slack.InteractionTypeBlockActions {
-					out.state.SlashCommand.ModalInternal.update = action
-				}
-				if interactionCallbackEvent.Type == slack.InteractionTypeViewSubmission {
-					out.state.SlashCommand.ModalInternal.update = submitted
-				}
-				if interactionCallbackEvent.Type == slack.InteractionTypeViewClosed {
-					out.state.SlashCommand.ModalInternal.update = closed
-				}
+				out.state.SlashCommand.populateEvent(interactionCallbackEvent.Type, &interactionCallbackEvent.View)
 			}
 		}
 	}

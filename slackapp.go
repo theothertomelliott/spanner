@@ -1,7 +1,6 @@
 package chatframework
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -53,43 +52,15 @@ func (s *slackApp) Run(handler func(ev EventState) error) error {
 				continue // Move on without acknowledging, will force a repeat
 			}
 			if evt.Request != nil {
-				var payload interface{} = map[string]interface{}{}
-
 				if slashCommand := es.state.SlashCommand; slashCommand != nil {
-					if modal := slashCommand.ModalInternal.render(); modal != nil {
-						metadata, err := json.MarshalIndent(es.state, "", "  ")
-						if err != nil {
-							log.Printf("saving metadata: %v\n", err)
-						}
-						modal.PrivateMetadata = string(metadata)
-
-						switch update := slashCommand.ModalInternal.update; update {
-						case created:
-							_, err = s.client.OpenView(slashCommand.TriggerID, *modal)
-							if err != nil {
-								log.Printf("opening view: %v\n", err)
-								continue
-							}
-						case action:
-							_, err := s.client.UpdateView(
-								*modal,
-								slashCommand.ModalInternal.ReceivedView.ExternalID,
-								es.hash,
-								slashCommand.ModalInternal.ReceivedView.ID,
-							)
-							if err != nil {
-								log.Printf("updating view: %v", err)
-								continue
-							}
-
-							// TODO: Do this for submission events if we want to create a new view
-							// Maybe we want to use push as well
-							//payload = slack.NewUpdateViewSubmissionResponse(modal)
-						}
+					err = slashCommand.handleRequest(evt.Request, es, s.client)
+					if err != nil {
+						log.Printf("handling request: %v", err)
 					}
+				} else {
+					var payload interface{} = map[string]interface{}{}
+					s.client.Ack(*evt.Request, payload)
 				}
-
-				s.client.Ack(*evt.Request, payload)
 			}
 		}
 	}()

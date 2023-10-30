@@ -67,6 +67,16 @@ func handler(ev chatframework.EventState) error {
 		if unitsOutput != "" {
 			if modal.Submit("Submit") {
 				fmt.Println("Submitted: ", tensOutput, unitsOutput)
+
+				modal2 := modal.Push("Step 2")
+				modal2.Text("Hello")
+
+				dropdown := modal2.Select("Dropdown", []string{"a", "b", "c"})
+				fmt.Println("Dropdown:", dropdown)
+
+				if modal2.Submit("Submit") {
+					fmt.Println("Final submission")
+				}
 			}
 		}
 	}

@@ -10,8 +10,7 @@ type EventState interface {
 }
 
 type Interaction interface {
-	// TODO: Refactor so that interactions create a separate object for handling modals, messages, etc
-	Modal(string) Modal
+	Modal(title string) Modal
 }
 
 type SlashCommand interface {
@@ -23,6 +22,8 @@ type Modal interface {
 	Select(title string, options []string) string
 	Submit(title string) bool
 	Close(title string) bool
+
+	Push(title string) Modal
 }
 
 type Message struct {

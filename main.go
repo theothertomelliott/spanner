@@ -30,7 +30,7 @@ func handler(ev EventState) error {
 		}
 	}
 	if testSlash := ev.SlashCommand("/testslash"); testSlash != nil {
-		fmt.Println("Slash command received")
+		fmt.Println("Handling /testslash")
 		modal := testSlash.Modal("My Modal")
 		modal.Text("Got your slash command")
 		tensOptions := []string{}
@@ -38,19 +38,19 @@ func handler(ev EventState) error {
 			tensOptions = append(tensOptions, fmt.Sprint(i))
 		}
 		tensOutput := modal.Select("Tens", tensOptions)
-		fmt.Println(tensOutput)
+		fmt.Println("Tens:", tensOutput)
 
-		// unitsOptions := []string{}
-		// for i := 0; i < 10; i++ {
-		// 	tensPrefix := tensOutput
-		// 	if tensPrefix == "0" {
-		// 		tensPrefix = ""
-		// 	}
-		// 	unitsOptions = append(unitsOptions, fmt.Sprintf("%v%v", tensPrefix, i))
-		// }
+		unitsOptions := []string{}
+		for i := 0; i < 10; i++ {
+			tensPrefix := tensOutput
+			if tensPrefix == "0" {
+				tensPrefix = ""
+			}
+			unitsOptions = append(unitsOptions, fmt.Sprintf("%v%v", tensPrefix, i))
+		}
 
-		// unitsOutput := modal.Select("Units", unitsOptions)
-		// fmt.Println(unitsOutput)
+		unitsOutput := modal.Select("Units", unitsOptions)
+		fmt.Println("Units:", unitsOutput)
 
 	}
 	return nil

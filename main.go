@@ -40,7 +40,8 @@ func handler(ev EventState) error {
 		tensOutput := modal.Select("Tens", tensOptions)
 		fmt.Println("Tens:", tensOutput)
 
-		if tensOutput != "0" {
+		unitsOutput := ""
+		if tensOutput != "" {
 
 			unitsOptions := []string{}
 			for i := 0; i < 10; i++ {
@@ -51,8 +52,14 @@ func handler(ev EventState) error {
 				unitsOptions = append(unitsOptions, fmt.Sprintf("%v%v", tensPrefix, i))
 			}
 
-			unitsOutput := modal.Select("Units", unitsOptions)
+			unitsOutput = modal.Select("Units", unitsOptions)
 			fmt.Println("Units:", unitsOutput)
+		}
+
+		if unitsOutput != "" {
+			if modal.Submit("Submit") {
+				fmt.Println("Submitted: ", tensOutput, unitsOutput)
+			}
 		}
 	}
 	return nil

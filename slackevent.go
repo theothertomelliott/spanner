@@ -57,7 +57,6 @@ func parseSlackEvent(ev socketmode.Event) *eventSlack {
 	}
 
 	if ev.Type == socketmode.EventTypeInteractive {
-		fmt.Printf("%T\n", ev.Data)
 		interactionCallbackEvent, ok := ev.Data.(slack.InteractionCallback)
 		if !ok {
 			return out
@@ -74,6 +73,9 @@ func parseSlackEvent(ev socketmode.Event) *eventSlack {
 			}
 			if out.state.SlashCommand != nil {
 				out.state.SlashCommand.ModalInternal.ReceivedView = &interactionCallbackEvent.View
+				if interactionCallbackEvent.Type == slack.InteractionTypeViewSubmission {
+					out.state.SlashCommand.ModalInternal.submitted = true
+				}
 			}
 		}
 		out.isAction = true

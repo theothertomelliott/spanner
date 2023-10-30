@@ -9,15 +9,14 @@ import (
 )
 
 type modalSlack struct {
-	TriggerID string `json:"trigger_id"`
-
-	// modal only
 	Title string `json:"title"`
 
 	Blocks       []slack.Block `json:"-"`
 	ReceivedView *slack.View   `json:"-"`
 
-	inputID int
+	inputID    int
+	submitText *string
+	submitted  bool
 }
 
 func (m *modalSlack) render() *slack.ModalViewRequest {
@@ -27,18 +26,17 @@ func (m *modalSlack) render() *slack.ModalViewRequest {
 	modal := &slack.ModalViewRequest{
 		Type:  slack.ViewType("modal"),
 		Title: slack.NewTextBlockObject(slack.PlainTextType, m.Title, false, false),
-		Close: slack.NewTextBlockObject(slack.PlainTextType, "Cancel", false, false),
-
-		// TODO: Should be controlled by the submit option
-		// It should error out with a meaningful message if there are inputs but no submit button
-		Submit: slack.NewTextBlockObject(slack.PlainTextType, "Submit", false, false),
+		//Close: slack.NewTextBlockObject(slack.PlainTextType, "Cancel", false, false),
 
 		Blocks: slack.Blocks{
 			BlockSet: m.Blocks,
 		},
-
-		CallbackID: "slackFrameworkModal1", // TODO: Change this
 	}
+
+	if m.submitText != nil {
+		modal.Submit = slack.NewTextBlockObject(slack.PlainTextType, *m.submitText, false, false)
+	}
+
 	return modal
 }
 
@@ -102,15 +100,12 @@ func (m *modalSlack) Select(text string, options []string) string {
 		}
 	}
 
-	// TODO: Empty options may not render
-	if len(options) > 0 {
-		return options[0]
-	}
 	return ""
 }
 
 func (m *modalSlack) Submit(text string) bool {
-	panic("not implemented")
+	m.submitText = &text
+	return m.submitted
 }
 
 // Get sha1 from string

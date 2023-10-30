@@ -207,6 +207,8 @@ func (m *modalSlack) handleRequest(req *socketmode.Request, es *eventSlack, clie
 		if err != nil {
 			return fmt.Errorf("updating view: %w", err)
 		}
+	case submitted:
+		payload = slack.NewClearViewSubmissionResponse()
 	}
 
 	client.Ack(*req, payload)

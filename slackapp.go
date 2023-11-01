@@ -59,7 +59,12 @@ func (s *slackApp) Run(handler func(ev Event) error) error {
 				}
 
 				if slashCommand := es.state.SlashCommand; slashCommand != nil {
-					err = slashCommand.handleRequest(evt.Request, metadata, es.hash, s.client)
+					err = slashCommand.handleRequest(requestSlack{
+						req:      *evt.Request,
+						metadata: metadata,
+						hash:     es.hash,
+						client:   s.client,
+					})
 					if err != nil {
 						log.Printf("handling request: %v", err)
 					}
@@ -71,4 +76,11 @@ func (s *slackApp) Run(handler func(ev Event) error) error {
 		}
 	}()
 	return s.client.Run()
+}
+
+type requestSlack struct {
+	req      socketmode.Request
+	metadata []byte
+	hash     string
+	client   *socketmode.Client
 }

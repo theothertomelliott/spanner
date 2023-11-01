@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/slack-go/slack"
-	"github.com/slack-go/slack/socketmode"
 )
 
 type modalSlack struct {
@@ -153,22 +152,22 @@ func (m *modalSlack) Close(text string) bool {
 	return m.update == closed
 }
 
-func (m *modalSlack) handleRequest(req *socketmode.Request, metadata []byte, hash string, client *socketmode.Client) error {
+func (m *modalSlack) handleRequest(req requestSlack) error {
 	var err error
 
 	if m.Submission != nil {
-		return m.Submission.handleRequest(req, metadata, hash, client)
+		return m.Submission.handleRequest(req)
 	}
 
 	modal := m.render()
-	modal.PrivateMetadata = string(metadata)
+	modal.PrivateMetadata = string(req.metadata)
 
 	var payload interface{} = map[string]interface{}{}
 
 	switch update := m.update; update {
 	case created:
 		if !m.HasParent {
-			_, err = client.OpenView(m.triggerID, *modal)
+			_, err = req.client.OpenView(m.triggerID, *modal)
 			if err != nil {
 				return fmt.Errorf("opening view: %w", err)
 			}
@@ -176,10 +175,10 @@ func (m *modalSlack) handleRequest(req *socketmode.Request, metadata []byte, has
 			payload = slack.NewPushViewSubmissionResponse(modal)
 		}
 	case action:
-		_, err := client.UpdateView(
+		_, err := req.client.UpdateView(
 			*modal,
 			m.ReceivedView.ExternalID,
-			hash,
+			req.hash,
 			m.ReceivedView.ID,
 		)
 		if err != nil {
@@ -187,7 +186,7 @@ func (m *modalSlack) handleRequest(req *socketmode.Request, metadata []byte, has
 		}
 	}
 
-	client.Ack(*req, payload)
+	req.client.Ack(req.req, payload)
 
 	return nil
 }
@@ -235,14 +234,14 @@ func (m *modalSubmissionSlack) Push(title string) Modal {
 	return m.NextModal
 }
 
-func (m *modalSubmissionSlack) handleRequest(req *socketmode.Request, metadata []byte, hash string, client *socketmode.Client) error {
+func (m *modalSubmissionSlack) handleRequest(req requestSlack) error {
 	if m.NextModal != nil {
-		return m.NextModal.handleRequest(req, metadata, hash, client)
+		return m.NextModal.handleRequest(req)
 	}
 
 	var payload interface{} = map[string]interface{}{}
 	payload = slack.NewClearViewSubmissionResponse()
-	client.Ack(*req, payload)
+	req.client.Ack(req.req, payload)
 
 	return nil
 }

@@ -2,7 +2,6 @@ package chatframework
 
 import (
 	"github.com/slack-go/slack"
-	"github.com/slack-go/slack/socketmode"
 )
 
 type slashCommandSlack struct {
@@ -25,9 +24,9 @@ func (is *slashCommandSlack) Modal(title string) Modal {
 	return is.ModalInternal
 }
 
-func (is *slashCommandSlack) handleRequest(req *socketmode.Request, metadata []byte, hash string, client *socketmode.Client) error {
+func (is *slashCommandSlack) handleRequest(req requestSlack) error {
 	if is.ModalInternal != nil {
-		return is.ModalInternal.handleRequest(req, metadata, hash, client)
+		return is.ModalInternal.handleRequest(req)
 	}
 	return nil
 }

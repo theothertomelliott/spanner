@@ -53,17 +53,24 @@ func (s *slackApp) Run(handler func(ev Event) error) error {
 				continue // Move on without acknowledging, will force a repeat
 			}
 			if evt.Request != nil {
-				metadata, err := json.Marshal(es.state)
-				if err != nil {
-					log.Printf("saving metadata: %v\n", err)
+				if message := es.state.Message; message != nil {
+					err = message.handleRequest(requestSlack{
+						req:    *evt.Request,
+						es:     es,
+						hash:   es.hash,
+						client: s.client,
+					})
+					if err != nil {
+						log.Printf("handling request: %v", err)
+					}
 				}
 
 				if slashCommand := es.state.SlashCommand; slashCommand != nil {
 					err = slashCommand.handleRequest(requestSlack{
-						req:      *evt.Request,
-						metadata: metadata,
-						hash:     es.hash,
-						client:   s.client,
+						req:    *evt.Request,
+						es:     es,
+						hash:   es.hash,
+						client: s.client,
 					})
 					if err != nil {
 						log.Printf("handling request: %v", err)
@@ -79,8 +86,16 @@ func (s *slackApp) Run(handler func(ev Event) error) error {
 }
 
 type requestSlack struct {
-	req      socketmode.Request
-	metadata []byte
-	hash     string
-	client   *socketmode.Client
+	req    socketmode.Request
+	es     *eventSlack
+	hash   string
+	client *socketmode.Client
+}
+
+func (r requestSlack) Metadata() []byte {
+	metadata, err := json.Marshal(r.es.state)
+	if err != nil {
+		panic(err)
+	}
+	return metadata
 }

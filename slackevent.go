@@ -2,6 +2,7 @@ package chatframework
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
@@ -28,9 +29,9 @@ func (e eventMetadataSlack) Channel() string {
 }
 
 type eventState struct {
-	Metadata     eventMetadataSlack `json:"metadata"`
-	SlashCommand *slashCommandSlack `json:"slash_command"`
-	Message      *messageSlack      `json:"message"`
+	Metadata     eventMetadataSlack    `json:"metadata"`
+	SlashCommand *slashCommandSlack    `json:"slash_command"`
+	Message      *receivedMessageSlack `json:"message"`
 }
 
 func parseSlackEvent(ev socketmode.Event) *eventSlack {
@@ -65,7 +66,7 @@ func parseSlackEvent(ev socketmode.Event) *eventSlack {
 				out.state.Metadata.ChannelInternal = ev.Channel
 				out.state.Metadata.UserInternal = ev.User
 
-				out.state.Message = &messageSlack{
+				out.state.Message = &receivedMessageSlack{
 					eventMetadataSlack: out.state.Metadata,
 					TextInternal:       ev.Text,
 				}
@@ -89,15 +90,25 @@ func parseSlackEvent(ev socketmode.Event) *eventSlack {
 				panic(err)
 			}
 			if out.state.SlashCommand != nil {
-				out.state.SlashCommand.populateEvent(interactionCallbackEvent.Type, &interactionCallbackEvent.View)
+				out.state.SlashCommand.populateEvent(eventPopulation{interactionCallbackEvent.Type, &interactionCallbackEvent.View})
 			}
 
+		} else if eventMeta := interactionCallbackEvent.Message.Metadata; eventMeta.EventType == "bot_message" {
+			err := json.Unmarshal([]byte(eventMeta.EventPayload["metadata"].(string)), &out.state)
+			if err != nil {
+				panic(err)
+			}
+			if out.state.Message != nil {
+				out.state.Message.populateEvent(eventPopulation{interactionCallbackEvent.Type, &interactionCallbackEvent.View})
+			}
+		} else {
+			fmt.Println("no metadata")
 		}
 	}
 	return out
 }
 
-func (e *eventSlack) ReceiveMessage() Message {
+func (e *eventSlack) ReceiveMessage() ReceivedMessage {
 	if e.state.Message != nil {
 		return e.state.Message
 	}
@@ -112,4 +123,11 @@ func (e *eventSlack) SlashCommand(command string) SlashCommand {
 		return nil
 	}
 	return e.state.SlashCommand
+}
+
+type eventPopulation struct {
+	interaction slack.InteractionType
+	view        *slack.View
+
+	// TODO: Get the state from a message
 }

@@ -3,20 +3,21 @@ package chatframework
 import (
 	"crypto/sha1"
 	"fmt"
-	"strings"
 
 	"github.com/slack-go/slack"
 )
 
+var _ Modal = &modalSlack{}
+
 type modalSlack struct {
+	*blocksSlack
+
 	Title      string                `json:"title"`
 	Submission *modalSubmissionSlack `json:"submission"`
 	HasParent  bool                  `json:"has_parent"`
 
-	blocks       []slack.Block
 	receivedView *slack.View
 
-	inputID   int
 	triggerID string
 
 	update updateType
@@ -74,57 +75,11 @@ func (m *modalSlack) Text(message string) {
 		return
 	}
 
-	m.blocks = append(m.blocks, slack.NewSectionBlock(
-		&slack.TextBlockObject{
-			Type: slack.MarkdownType,
-			Text: message,
-		},
-		nil,
-		nil,
-	))
+	m.addText(message)
 }
 
 func (m *modalSlack) Select(text string, options []string) string {
-	defer func() {
-		m.inputID++
-	}()
-
-	optionHash := hashstr(strings.Join(options, ","))
-
-	var (
-		inputBlockID     string = fmt.Sprintf("input-%v-%v", optionHash, m.inputID)
-		inputSelectionID string = fmt.Sprintf("input%vselection", m.inputID)
-	)
-
-	var optionObjects []*slack.OptionBlockObject
-	for index, option := range options {
-		optionID := fmt.Sprintf("input%voption%v", m.inputID, index)
-		optionObjects = append(
-			optionObjects,
-			slack.NewOptionBlockObject(
-				optionID,
-				slack.NewTextBlockObject(slack.PlainTextType, option, false, false),
-				nil,
-			),
-		)
-	}
-
-	input := slack.NewInputBlock(
-		inputBlockID,
-		slack.NewTextBlockObject(slack.PlainTextType, text, false, false),
-		nil,
-		slack.NewOptionsSelectBlockElement(
-			slack.OptTypeStatic,
-			slack.NewTextBlockObject(slack.PlainTextType, text, false, false),
-			inputSelectionID,
-			optionObjects...,
-		),
-	)
-	input.DispatchAction = true
-
-	m.blocks = append(m.blocks,
-		input,
-	)
+	inputBlockID, inputSelectionID := m.addSelect(text, options)
 
 	if state := m.state(); state != nil {
 		viewState := state.Values
@@ -160,7 +115,7 @@ func (m *modalSlack) handleRequest(req requestSlack) error {
 	}
 
 	modal := m.render()
-	modal.PrivateMetadata = string(req.metadata)
+	modal.PrivateMetadata = string(req.Metadata())
 
 	var payload interface{} = map[string]interface{}{}
 
@@ -191,27 +146,33 @@ func (m *modalSlack) handleRequest(req requestSlack) error {
 	return nil
 }
 
-func (m *modalSlack) populateEvent(interaction slack.InteractionType, view *slack.View) error {
-	if m.Submission != nil {
-		return m.Submission.populateEvent(interaction, view)
+func (m *modalSlack) populateEvent(p eventPopulation) error {
+	if m.blocksSlack == nil {
+		m.blocksSlack = &blocksSlack{}
 	}
 
-	m.receivedView = view
-	if interaction == slack.InteractionTypeBlockActions {
+	if m.Submission != nil {
+		return m.Submission.populateEvent(p)
+	}
+
+	m.receivedView = p.view
+	if p.interaction == slack.InteractionTypeBlockActions {
 		m.update = action
 	}
-	if interaction == slack.InteractionTypeViewSubmission {
+	if p.interaction == slack.InteractionTypeViewSubmission {
 		m.Submission = &modalSubmissionSlack{
 			parent: m,
 		}
 		m.update = submitted
 	}
-	if interaction == slack.InteractionTypeViewClosed {
+	if p.interaction == slack.InteractionTypeViewClosed {
 		m.update = closed
 	}
 
 	return nil
 }
+
+var _ ModalSubmission = &modalSubmissionSlack{}
 
 type modalSubmissionSlack struct {
 	SubmittedState *slack.ViewState `json:"submitted_state"`
@@ -228,10 +189,15 @@ func (m *modalSubmissionSlack) Push(title string) Modal {
 	m.SubmittedState = m.parent.receivedView.State
 
 	m.NextModal = &modalSlack{
-		Title:     title,
-		HasParent: true,
+		blocksSlack: &blocksSlack{},
+		Title:       title,
+		HasParent:   true,
 	}
 	return m.NextModal
+}
+
+func (m *modalSubmissionSlack) Message() Message {
+	return nil
 }
 
 func (m *modalSubmissionSlack) handleRequest(req requestSlack) error {
@@ -246,9 +212,9 @@ func (m *modalSubmissionSlack) handleRequest(req requestSlack) error {
 	return nil
 }
 
-func (m *modalSubmissionSlack) populateEvent(interaction slack.InteractionType, view *slack.View) error {
+func (m *modalSubmissionSlack) populateEvent(p eventPopulation) error {
 	if m.NextModal != nil {
-		return m.NextModal.populateEvent(interaction, view)
+		return m.NextModal.populateEvent(p)
 	}
 
 	return nil

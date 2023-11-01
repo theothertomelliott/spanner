@@ -1,16 +1,15 @@
 package chatframework
 
-import (
-	"github.com/slack-go/slack"
-)
-
 type slashCommandSlack struct {
 	eventMetadataSlack
 
 	TriggerID     string      `json:"trigger_id"`
 	Command       string      `json:"command"`
 	ModalInternal *modalSlack `json:"modal"`
+	Messages      []Message   `json:"messages"`
 }
+
+var _ SlashCommand = &slashCommandSlack{}
 
 func (is *slashCommandSlack) Modal(title string) Modal {
 	if is == nil {
@@ -20,10 +19,15 @@ func (is *slashCommandSlack) Modal(title string) Modal {
 		return is.ModalInternal
 	}
 	is.ModalInternal = &modalSlack{
-		Title:     title,
-		triggerID: is.TriggerID,
+		blocksSlack: &blocksSlack{},
+		Title:       title,
+		triggerID:   is.TriggerID,
 	}
 	return is.ModalInternal
+}
+
+func (is *slashCommandSlack) Message() Message {
+	return nil
 }
 
 func (is *slashCommandSlack) handleRequest(req requestSlack) error {
@@ -33,9 +37,9 @@ func (is *slashCommandSlack) handleRequest(req requestSlack) error {
 	return nil
 }
 
-func (is *slashCommandSlack) populateEvent(interaction slack.InteractionType, view *slack.View) error {
+func (is *slashCommandSlack) populateEvent(p eventPopulation) error {
 	if is.ModalInternal != nil {
-		return is.ModalInternal.populateEvent(interaction, view)
+		return is.ModalInternal.populateEvent(p)
 	}
 	return nil
 }

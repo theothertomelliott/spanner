@@ -5,12 +5,13 @@ type App interface {
 }
 
 type Event interface {
-	ReceiveMessage() Message
+	ReceiveMessage() ReceivedMessage
 	SlashCommand(command string) SlashCommand
 }
 
 type Interaction interface {
 	Modal(title string) Modal
+	Message() Message
 }
 
 type SlashCommand interface {
@@ -18,15 +19,20 @@ type SlashCommand interface {
 	Interaction
 }
 
-type Modal interface {
+type BlockUI interface {
 	Text(message string)
 	Select(title string, options []string) string
+}
+
+type Modal interface {
+	BlockUI
 	Submit(title string) ModalSubmission
 	Close(title string) bool
 }
 
 type ModalSubmission interface {
 	Push(title string) Modal
+	Message() Message
 }
 
 type Metadata interface {
@@ -34,7 +40,14 @@ type Metadata interface {
 	Channel() string
 }
 
-type Message interface {
+type ReceivedMessage interface {
 	Metadata
 	Text() string
+	SendMessage() Message
+}
+
+type Message interface {
+	BlockUI
+
+	Channel(channelID string)
 }

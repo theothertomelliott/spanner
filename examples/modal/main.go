@@ -29,6 +29,10 @@ func handler(ev chatframework.Event) error {
 		if msg.Text() == "hello" {
 			// TODO: Send a reply message
 			fmt.Printf("got a hello from user %v in channel %v\n", msg.User(), msg.Channel())
+			outMessage := msg.SendMessage()
+			outMessage.Text(fmt.Sprintf("Hello to you too: %v", msg.User()))
+			selectValue := outMessage.Select("Select", []string{"a", "b", "c"})
+			fmt.Println("Select:", selectValue)
 		}
 	}
 	if testSlash := ev.SlashCommand("/testslash"); testSlash != nil {

@@ -13,8 +13,8 @@ type modalSlack struct {
 	Submission *modalSubmissionSlack `json:"submission"`
 	HasParent  bool                  `json:"has_parent"`
 
-	Blocks       []slack.Block `json:"-"`
-	ReceivedView *slack.View   `json:"-"`
+	blocks       []slack.Block
+	receivedView *slack.View
 
 	inputID   int
 	triggerID string
@@ -43,7 +43,7 @@ func (m *modalSlack) render() *slack.ModalViewRequest {
 		Title: slack.NewTextBlockObject(slack.PlainTextType, m.Title, false, false),
 
 		Blocks: slack.Blocks{
-			BlockSet: m.Blocks,
+			BlockSet: m.blocks,
 		},
 	}
 
@@ -60,8 +60,8 @@ func (m *modalSlack) render() *slack.ModalViewRequest {
 }
 
 func (m *modalSlack) state() *slack.ViewState {
-	if m.ReceivedView != nil {
-		return m.ReceivedView.State
+	if m.receivedView != nil {
+		return m.receivedView.State
 	}
 	if m.Submission != nil {
 		return m.Submission.SubmittedState
@@ -74,7 +74,7 @@ func (m *modalSlack) Text(message string) {
 		return
 	}
 
-	m.Blocks = append(m.Blocks, slack.NewSectionBlock(
+	m.blocks = append(m.blocks, slack.NewSectionBlock(
 		&slack.TextBlockObject{
 			Type: slack.MarkdownType,
 			Text: message,
@@ -122,7 +122,7 @@ func (m *modalSlack) Select(text string, options []string) string {
 	)
 	input.DispatchAction = true
 
-	m.Blocks = append(m.Blocks,
+	m.blocks = append(m.blocks,
 		input,
 	)
 
@@ -177,9 +177,9 @@ func (m *modalSlack) handleRequest(req requestSlack) error {
 	case action:
 		_, err := req.client.UpdateView(
 			*modal,
-			m.ReceivedView.ExternalID,
+			m.receivedView.ExternalID,
 			req.hash,
-			m.ReceivedView.ID,
+			m.receivedView.ID,
 		)
 		if err != nil {
 			return fmt.Errorf("updating view: %w", err)
@@ -196,7 +196,7 @@ func (m *modalSlack) populateEvent(interaction slack.InteractionType, view *slac
 		return m.Submission.populateEvent(interaction, view)
 	}
 
-	m.ReceivedView = view
+	m.receivedView = view
 	if interaction == slack.InteractionTypeBlockActions {
 		m.update = action
 	}
@@ -225,7 +225,7 @@ func (m *modalSubmissionSlack) Push(title string) Modal {
 		return m.NextModal
 	}
 
-	m.SubmittedState = m.parent.ReceivedView.State
+	m.SubmittedState = m.parent.receivedView.State
 
 	m.NextModal = &modalSlack{
 		Title:     title,

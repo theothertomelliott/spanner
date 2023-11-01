@@ -1,6 +1,7 @@
 package chatframework
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -42,7 +43,7 @@ type slackApp struct {
 	client *socketmode.Client
 }
 
-func (s *slackApp) Run(handler func(ev EventState) error) error {
+func (s *slackApp) Run(handler func(ev Event) error) error {
 	go func() {
 		for evt := range s.client.Events {
 			es := parseSlackEvent(evt)
@@ -52,8 +53,13 @@ func (s *slackApp) Run(handler func(ev EventState) error) error {
 				continue // Move on without acknowledging, will force a repeat
 			}
 			if evt.Request != nil {
+				metadata, err := json.Marshal(es.state)
+				if err != nil {
+					log.Printf("saving metadata: %v\n", err)
+				}
+
 				if slashCommand := es.state.SlashCommand; slashCommand != nil {
-					err = slashCommand.handleRequest(evt.Request, es, s.client)
+					err = slashCommand.handleRequest(evt.Request, metadata, es.hash, s.client)
 					if err != nil {
 						log.Printf("handling request: %v", err)
 					}

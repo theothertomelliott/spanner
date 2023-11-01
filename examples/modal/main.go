@@ -23,7 +23,7 @@ func main() {
 	}
 }
 
-func handler(ev chatframework.EventState) error {
+func handler(ev chatframework.Event) error {
 	if msg := ev.ReceiveMessage(); msg != nil {
 		fmt.Println("Received a message:", msg.Text)
 		if msg.Text == "hello" {
@@ -65,16 +65,16 @@ func handler(ev chatframework.EventState) error {
 		}
 
 		if unitsOutput != "" {
-			if modal.Submit("Submit") {
+			if submit := modal.Submit("Submit"); submit != nil {
 				fmt.Println("Submitted: ", tensOutput, unitsOutput)
 
-				modal2 := modal.Push("Step 2")
+				modal2 := submit.Push("Step 2")
 				modal2.Text("Hello")
 
 				dropdown := modal2.Select("Dropdown", []string{"a", "b", "c"})
 				fmt.Println("Dropdown:", dropdown)
 
-				if modal2.Submit("Submit") {
+				if modal2.Submit("Submit") != nil {
 					fmt.Println("Final submission")
 				}
 			}

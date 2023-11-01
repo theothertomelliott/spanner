@@ -1,10 +1,10 @@
 package chatframework
 
 type App interface {
-	Run(func(ev EventState) error) error
+	Run(func(ev Event) error) error
 }
 
-type EventState interface {
+type Event interface {
 	ReceiveMessage() *Message
 	SlashCommand(command string) SlashCommand
 }
@@ -20,9 +20,11 @@ type SlashCommand interface {
 type Modal interface {
 	Text(message string)
 	Select(title string, options []string) string
-	Submit(title string) bool
+	Submit(title string) ModalSubmission
 	Close(title string) bool
+}
 
+type ModalSubmission interface {
 	Push(title string) Modal
 }
 

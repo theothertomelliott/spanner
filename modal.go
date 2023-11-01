@@ -2,9 +2,7 @@ package chatframework
 
 import (
 	"crypto/sha1"
-	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/slack-go/slack"
@@ -12,14 +10,12 @@ import (
 )
 
 type modalSlack struct {
-	Title string `json:"title"`
+	Title      string                `json:"title"`
+	Submission *modalSubmissionSlack `json:"submission"`
+	HasParent  bool                  `json:"has_parent"`
 
-	Blocks         []slack.Block    `json:"-"`
-	ReceivedView   *slack.View      `json:"-"`
-	SubmittedState *slack.ViewState `json:"submitted_state"`
-
-	parentModal *modalSlack
-	NextModal   *modalSlack `json:"next_modal"`
+	Blocks       []slack.Block `json:"-"`
+	ReceivedView *slack.View   `json:"-"`
 
 	inputID   int
 	triggerID string
@@ -68,10 +64,17 @@ func (m *modalSlack) state() *slack.ViewState {
 	if m.ReceivedView != nil {
 		return m.ReceivedView.State
 	}
-	return m.SubmittedState
+	if m.Submission != nil {
+		return m.Submission.SubmittedState
+	}
+	return nil
 }
 
 func (m *modalSlack) Text(message string) {
+	if m == nil {
+		return
+	}
+
 	m.Blocks = append(m.Blocks, slack.NewSectionBlock(
 		&slack.TextBlockObject{
 			Type: slack.MarkdownType,
@@ -134,15 +137,15 @@ func (m *modalSlack) Select(text string, options []string) string {
 	return ""
 }
 
-func (m *modalSlack) Submit(text string) bool {
+func (m *modalSlack) Submit(text string) ModalSubmission {
 	m.submitText = &text
-
-	// Definitely submitted if a new modal has been pushed
-	if m.NextModal != nil {
-		return true
+	// This should be redundant, but for some reason, returning m.Submission
+	// resulted in `m.Submit("txt") != nil` being false even if m.Submission
+	// was nil.
+	if m.Submission == nil {
+		return nil
 	}
-
-	return m.update == submitted
+	return m.Submission
 }
 
 func (m *modalSlack) Close(text string) bool {
@@ -150,65 +153,38 @@ func (m *modalSlack) Close(text string) bool {
 	return m.update == closed
 }
 
-func (m *modalSlack) Push(title string) Modal {
-	if m == nil {
-		return nil
-	}
+func (m *modalSlack) handleRequest(req *socketmode.Request, metadata []byte, hash string, client *socketmode.Client) error {
+	var err error
 
-	if m.NextModal != nil {
-		return m.NextModal
-	}
-
-	m.SubmittedState = m.ReceivedView.State
-
-	m.NextModal = &modalSlack{
-		Title:       title,
-		parentModal: m,
-	}
-	return m.NextModal
-}
-
-func (m *modalSlack) handleRequest(req *socketmode.Request, es *eventSlack, client *socketmode.Client) error {
-	if m.NextModal != nil {
-		return m.NextModal.handleRequest(req, es, client)
+	if m.Submission != nil {
+		return m.Submission.handleRequest(req, metadata, hash, client)
 	}
 
 	modal := m.render()
-	metadata, err := json.Marshal(es.state)
-	if err != nil {
-		log.Printf("saving metadata: %v\n", err)
-	}
 	modal.PrivateMetadata = string(metadata)
 
 	var payload interface{} = map[string]interface{}{}
 
 	switch update := m.update; update {
 	case created:
-		if m.parentModal == nil {
+		if !m.HasParent {
 			_, err = client.OpenView(m.triggerID, *modal)
 			if err != nil {
 				return fmt.Errorf("opening view: %w", err)
 			}
-		} else if m.parentModal.update == submitted {
-			payload = slack.NewPushViewSubmissionResponse(modal)
 		} else {
-			_, err = client.PushView(m.triggerID, *modal)
-			if err != nil {
-				return fmt.Errorf("opening view: %w", err)
-			}
+			payload = slack.NewPushViewSubmissionResponse(modal)
 		}
 	case action:
 		_, err := client.UpdateView(
 			*modal,
 			m.ReceivedView.ExternalID,
-			es.hash,
+			hash,
 			m.ReceivedView.ID,
 		)
 		if err != nil {
 			return fmt.Errorf("updating view: %w", err)
 		}
-	case submitted:
-		payload = slack.NewClearViewSubmissionResponse()
 	}
 
 	client.Ack(*req, payload)
@@ -217,8 +193,8 @@ func (m *modalSlack) handleRequest(req *socketmode.Request, es *eventSlack, clie
 }
 
 func (m *modalSlack) populateEvent(interaction slack.InteractionType, view *slack.View) error {
-	if m.NextModal != nil {
-		return m.NextModal.populateEvent(interaction, view)
+	if m.Submission != nil {
+		return m.Submission.populateEvent(interaction, view)
 	}
 
 	m.ReceivedView = view
@@ -226,10 +202,54 @@ func (m *modalSlack) populateEvent(interaction slack.InteractionType, view *slac
 		m.update = action
 	}
 	if interaction == slack.InteractionTypeViewSubmission {
+		m.Submission = &modalSubmissionSlack{
+			parent: m,
+		}
 		m.update = submitted
 	}
 	if interaction == slack.InteractionTypeViewClosed {
 		m.update = closed
+	}
+
+	return nil
+}
+
+type modalSubmissionSlack struct {
+	SubmittedState *slack.ViewState `json:"submitted_state"`
+	NextModal      *modalSlack      `json:"next_modal"`
+
+	parent *modalSlack
+}
+
+func (m *modalSubmissionSlack) Push(title string) Modal {
+	if m.NextModal != nil {
+		return m.NextModal
+	}
+
+	m.SubmittedState = m.parent.ReceivedView.State
+
+	m.NextModal = &modalSlack{
+		Title:     title,
+		HasParent: true,
+	}
+	return m.NextModal
+}
+
+func (m *modalSubmissionSlack) handleRequest(req *socketmode.Request, metadata []byte, hash string, client *socketmode.Client) error {
+	if m.NextModal != nil {
+		return m.NextModal.handleRequest(req, metadata, hash, client)
+	}
+
+	var payload interface{} = map[string]interface{}{}
+	payload = slack.NewClearViewSubmissionResponse()
+	client.Ack(*req, payload)
+
+	return nil
+}
+
+func (m *modalSubmissionSlack) populateEvent(interaction slack.InteractionType, view *slack.View) error {
+	if m.NextModal != nil {
+		return m.NextModal.populateEvent(interaction, view)
 	}
 
 	return nil

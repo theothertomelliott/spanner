@@ -70,6 +70,7 @@ func parseSlackEvent(ev socketmode.Event) *eventSlack {
 			if out.state.SlashCommand != nil {
 				out.state.SlashCommand.populateEvent(interactionCallbackEvent.Type, &interactionCallbackEvent.View)
 			}
+
 		}
 	}
 	return out

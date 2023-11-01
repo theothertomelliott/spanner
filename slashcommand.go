@@ -5,6 +5,8 @@ import (
 )
 
 type slashCommandSlack struct {
+	eventMetadataSlack
+
 	TriggerID     string      `json:"trigger_id"`
 	Command       string      `json:"command"`
 	ModalInternal *modalSlack `json:"modal"`

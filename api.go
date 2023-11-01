@@ -5,7 +5,7 @@ type App interface {
 }
 
 type Event interface {
-	ReceiveMessage() *Message
+	ReceiveMessage() Message
 	SlashCommand(command string) SlashCommand
 }
 
@@ -14,6 +14,7 @@ type Interaction interface {
 }
 
 type SlashCommand interface {
+	Metadata
 	Interaction
 }
 
@@ -28,7 +29,12 @@ type ModalSubmission interface {
 	Push(title string) Modal
 }
 
-type Message struct {
-	UserID string
-	Text   string
+type Metadata interface {
+	User() string
+	Channel() string
+}
+
+type Message interface {
+	Metadata
+	Text() string
 }

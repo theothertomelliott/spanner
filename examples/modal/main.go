@@ -25,14 +25,14 @@ func main() {
 
 func handler(ev chatframework.Event) error {
 	if msg := ev.ReceiveMessage(); msg != nil {
-		fmt.Println("Received a message:", msg.Text)
-		if msg.Text == "hello" {
+		fmt.Println("Received a message:", msg.Text())
+		if msg.Text() == "hello" {
 			// TODO: Send a reply message
-			fmt.Println("got a hello")
+			fmt.Printf("got a hello from user %v in channel %v\n", msg.User(), msg.Channel())
 		}
 	}
 	if testSlash := ev.SlashCommand("/testslash"); testSlash != nil {
-		fmt.Println("Handling /testslash")
+		fmt.Printf("Handling /testslash from user %v in channel %v\n", testSlash.User(), testSlash.Channel())
 		modal := testSlash.Modal("My Modal")
 
 		if modal.Close("Cancel") {

@@ -14,9 +14,23 @@ type eventSlack struct {
 	state eventState
 }
 
+type eventMetadataSlack struct {
+	ChannelInternal string `json:"channel"`
+	UserInternal    string `json:"user"`
+}
+
+func (e eventMetadataSlack) User() string {
+	return e.UserInternal
+}
+
+func (e eventMetadataSlack) Channel() string {
+	return e.ChannelInternal
+}
+
 type eventState struct {
+	Metadata     eventMetadataSlack `json:"metadata"`
 	SlashCommand *slashCommandSlack `json:"slash_command"`
-	Message      *Message           `json:"message"`
+	Message      *messageSlack      `json:"message"`
 }
 
 func parseSlackEvent(ev socketmode.Event) *eventSlack {
@@ -28,9 +42,13 @@ func parseSlackEvent(ev socketmode.Event) *eventSlack {
 			return out
 		}
 
+		out.state.Metadata.ChannelInternal = cmd.ChannelID
+		out.state.Metadata.UserInternal = cmd.UserID
+
 		out.state.SlashCommand = &slashCommandSlack{
-			TriggerID: cmd.TriggerID,
-			Command:   cmd.Command,
+			eventMetadataSlack: out.state.Metadata,
+			TriggerID:          cmd.TriggerID,
+			Command:            cmd.Command,
 		}
 		return out
 	}
@@ -44,9 +62,12 @@ func parseSlackEvent(ev socketmode.Event) *eventSlack {
 			innerEvent := eventsAPIEvent.InnerEvent
 			switch ev := innerEvent.Data.(type) {
 			case *slackevents.MessageEvent:
-				out.state.Message = &Message{
-					UserID: ev.User,
-					Text:   ev.Text,
+				out.state.Metadata.ChannelInternal = ev.Channel
+				out.state.Metadata.UserInternal = ev.User
+
+				out.state.Message = &messageSlack{
+					eventMetadataSlack: out.state.Metadata,
+					TextInternal:       ev.Text,
 				}
 			}
 			return out
@@ -76,8 +97,11 @@ func parseSlackEvent(ev socketmode.Event) *eventSlack {
 	return out
 }
 
-func (e *eventSlack) ReceiveMessage() *Message {
-	return e.state.Message
+func (e *eventSlack) ReceiveMessage() Message {
+	if e.state.Message != nil {
+		return e.state.Message
+	}
+	return nil
 }
 
 func (e *eventSlack) SlashCommand(command string) SlashCommand {

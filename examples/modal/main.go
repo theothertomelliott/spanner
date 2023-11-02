@@ -34,6 +34,9 @@ func handler(ev chatframework.Event) error {
 			selectValue := outMessage.Select("Select", []string{"a", "b", "c"})
 			fmt.Println("Select:", selectValue)
 
+			select2Value := outMessage.Select("Select 2", []string{"d", "e", "f"})
+			fmt.Println("Select 2:", select2Value)
+
 			out2 := msg.SendMessage()
 			out2.Text("Here's another message for good measure")
 		}

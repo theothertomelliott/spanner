@@ -15,7 +15,9 @@ type modalSlack struct {
 	Submission *modalSubmissionSlack `json:"submission"`
 	HasParent  bool                  `json:"has_parent"`
 
-	receivedView *slack.View
+	ViewID         string `json:"view_id"`
+	ViewExternalID string `json:"view_external_id"`
+	blockState     map[string]map[string]slack.BlockAction
 
 	triggerID string
 
@@ -59,9 +61,9 @@ func (m *modalSlack) render() *slack.ModalViewRequest {
 	return modal
 }
 
-func (m *modalSlack) state() *slack.ViewState {
-	if m.receivedView != nil {
-		return m.receivedView.State
+func (m *modalSlack) state() map[string]map[string]slack.BlockAction {
+	if m.blockState != nil {
+		return m.blockState
 	}
 	if m.Submission != nil {
 		return m.Submission.SubmittedState
@@ -81,7 +83,7 @@ func (m *modalSlack) Select(text string, options []string) string {
 	inputBlockID, inputSelectionID := m.addSelect(text, options)
 
 	if state := m.state(); state != nil {
-		viewState := state.Values
+		viewState := state
 		if viewState[inputBlockID][inputSelectionID].SelectedOption.Text != nil {
 			return viewState[inputBlockID][inputSelectionID].SelectedOption.Text.Text
 		}
@@ -131,9 +133,9 @@ func (m *modalSlack) handleRequest(req requestSlack) error {
 	case action:
 		_, err := req.client.UpdateView(
 			*modal,
-			m.receivedView.ExternalID,
+			m.ViewExternalID,
 			req.hash,
-			m.receivedView.ID,
+			m.ViewID,
 		)
 		if err != nil {
 			return fmt.Errorf("updating view: %w", err)
@@ -154,7 +156,9 @@ func (m *modalSlack) populateEvent(p eventPopulation) error {
 		return m.Submission.populateEvent(p)
 	}
 
-	m.receivedView = p.view
+	m.ViewExternalID = p.interactionCallbackEvent.View.ExternalID
+	m.ViewID = p.interactionCallbackEvent.View.ID
+	m.blockState = p.interactionCallbackEvent.View.State.Values
 	if p.interaction == slack.InteractionTypeBlockActions {
 		m.update = action
 	}
@@ -174,8 +178,8 @@ func (m *modalSlack) populateEvent(p eventPopulation) error {
 var _ ModalSubmission = &modalSubmissionSlack{}
 
 type modalSubmissionSlack struct {
-	SubmittedState *slack.ViewState `json:"submitted_state"`
-	NextModal      *modalSlack      `json:"next_modal"`
+	SubmittedState map[string]map[string]slack.BlockAction `json:"submitted_state"`
+	NextModal      *modalSlack                             `json:"next_modal"`
 
 	parent *modalSlack
 }
@@ -185,7 +189,7 @@ func (m *modalSubmissionSlack) Push(title string) Modal {
 		return m.NextModal
 	}
 
-	m.SubmittedState = m.parent.receivedView.State
+	m.SubmittedState = m.parent.blockState
 
 	m.NextModal = &modalSlack{
 		BlocksSlack: &BlocksSlack{},

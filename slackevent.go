@@ -90,7 +90,13 @@ func parseSlackEvent(ev socketmode.Event) *eventSlack {
 				panic(err)
 			}
 			if out.state.SlashCommand != nil {
-				out.state.SlashCommand.populateEvent(eventPopulation{interactionCallbackEvent.Type, &interactionCallbackEvent.View, interactionCallbackEvent.BlockActionState, ""})
+				out.state.SlashCommand.populateEvent(
+					eventPopulation{
+						interactionCallbackEvent: interactionCallbackEvent,
+						interaction:              interactionCallbackEvent.Type,
+						messageIndex:             "",
+					},
+				)
 			}
 
 		} else if eventMeta := interactionCallbackEvent.Message.Metadata; eventMeta.EventType == "bot_message" {
@@ -100,7 +106,13 @@ func parseSlackEvent(ev socketmode.Event) *eventSlack {
 				panic(err)
 			}
 			if out.state.Message != nil {
-				out.state.Message.populateEvent(eventPopulation{interactionCallbackEvent.Type, &interactionCallbackEvent.View, interactionCallbackEvent.BlockActionState, messageIndex})
+				out.state.Message.populateEvent(
+					eventPopulation{
+						interactionCallbackEvent: interactionCallbackEvent,
+						interaction:              interactionCallbackEvent.Type,
+						messageIndex:             messageIndex,
+					},
+				)
 			}
 
 		} else {
@@ -128,8 +140,7 @@ func (e *eventSlack) SlashCommand(command string) SlashCommand {
 }
 
 type eventPopulation struct {
-	interaction       slack.InteractionType
-	view              *slack.View
-	blockActionStates *slack.BlockActionStates
-	messageIndex      string
+	interactionCallbackEvent slack.InteractionCallback
+	interaction              slack.InteractionType
+	messageIndex             string
 }

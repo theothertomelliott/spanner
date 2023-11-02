@@ -70,11 +70,11 @@ type messageSlack struct {
 	MessageIndex string `json:"message_index"`
 	unsent       bool
 
-	blockActionStates *slack.BlockActionStates
+	blockState map[string]map[string]slack.BlockAction
 }
 
-func (m *messageSlack) state() *slack.BlockActionStates {
-	return m.blockActionStates
+func (m *messageSlack) state() map[string]map[string]slack.BlockAction {
+	return m.blockState
 }
 
 func (m *messageSlack) Channel(channelID string) {
@@ -90,7 +90,7 @@ func (m *messageSlack) Select(title string, options []string) string {
 
 	// Retrieve the selected option from the state
 	if state := m.state(); state != nil {
-		viewState := state.Values
+		viewState := state
 		if viewState[inputBlockID][inputSelectionID].SelectedOption.Text != nil {
 			return viewState[inputBlockID][inputSelectionID].SelectedOption.Text.Text
 		}
@@ -120,6 +120,6 @@ func (m *messageSlack) handleRequest(req requestSlack) error {
 }
 
 func (m *messageSlack) populateEvent(p eventPopulation) error {
-	m.blockActionStates = p.blockActionStates
+	m.blockState = p.interactionCallbackEvent.BlockActionState.Values
 	return nil
 }

@@ -9,8 +9,17 @@ import (
 )
 
 type BlocksSlack struct {
-	blocks  []slack.Block
-	inputID int
+	blocks     []slack.Block
+	BlockState map[string]map[string]slack.BlockAction `json:"block_state"`
+	inputID    int
+}
+
+func (b *BlocksSlack) Text(message string) {
+	if b == nil {
+		return
+	}
+
+	b.addText(message)
 }
 
 func (b *BlocksSlack) addText(message string) {
@@ -23,6 +32,20 @@ func (b *BlocksSlack) addText(message string) {
 		nil,
 	))
 
+}
+
+func (b *BlocksSlack) Select(title string, options []string) string {
+	inputBlockID, inputSelectionID := b.addSelect(title, options)
+
+	// Retrieve the selected option from the state
+	if state := b.state(); state != nil {
+		viewState := state
+		if viewState[inputBlockID][inputSelectionID].SelectedOption.Text != nil {
+			return viewState[inputBlockID][inputSelectionID].SelectedOption.Text.Text
+		}
+	}
+
+	return ""
 }
 
 func (b *BlocksSlack) addSelect(text string, options []string) (inputBlockID string, inputSelectionID string) {
@@ -66,6 +89,13 @@ func (b *BlocksSlack) addSelect(text string, options []string) (inputBlockID str
 	)
 
 	return inputBlockID, inputSelectionID
+}
+
+func (m *BlocksSlack) state() map[string]map[string]slack.BlockAction {
+	if m.BlockState != nil {
+		return m.BlockState
+	}
+	return nil
 }
 
 // Get sha1 from string

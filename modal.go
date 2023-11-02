@@ -17,7 +17,6 @@ type modalSlack struct {
 
 	ViewID         string `json:"view_id"`
 	ViewExternalID string `json:"view_external_id"`
-	blockState     map[string]map[string]slack.BlockAction
 
 	triggerID string
 
@@ -59,37 +58,6 @@ func (m *modalSlack) render() *slack.ModalViewRequest {
 	}
 
 	return modal
-}
-
-func (m *modalSlack) state() map[string]map[string]slack.BlockAction {
-	if m.blockState != nil {
-		return m.blockState
-	}
-	if m.Submission != nil {
-		return m.Submission.SubmittedState
-	}
-	return nil
-}
-
-func (m *modalSlack) Text(message string) {
-	if m == nil {
-		return
-	}
-
-	m.addText(message)
-}
-
-func (m *modalSlack) Select(text string, options []string) string {
-	inputBlockID, inputSelectionID := m.addSelect(text, options)
-
-	if state := m.state(); state != nil {
-		viewState := state
-		if viewState[inputBlockID][inputSelectionID].SelectedOption.Text != nil {
-			return viewState[inputBlockID][inputSelectionID].SelectedOption.Text.Text
-		}
-	}
-
-	return ""
 }
 
 func (m *modalSlack) Submit(text string) ModalSubmission {
@@ -158,7 +126,8 @@ func (m *modalSlack) populateEvent(p eventPopulation) error {
 
 	m.ViewExternalID = p.interactionCallbackEvent.View.ExternalID
 	m.ViewID = p.interactionCallbackEvent.View.ID
-	m.blockState = p.interactionCallbackEvent.View.State.Values
+	m.BlockState = p.interactionCallbackEvent.View.State.Values
+
 	if p.interaction == slack.InteractionTypeBlockActions {
 		m.update = action
 	}
@@ -178,8 +147,7 @@ func (m *modalSlack) populateEvent(p eventPopulation) error {
 var _ ModalSubmission = &modalSubmissionSlack{}
 
 type modalSubmissionSlack struct {
-	SubmittedState map[string]map[string]slack.BlockAction `json:"submitted_state"`
-	NextModal      *modalSlack                             `json:"next_modal"`
+	NextModal *modalSlack `json:"next_modal"`
 
 	parent *modalSlack
 }
@@ -188,8 +156,6 @@ func (m *modalSubmissionSlack) Push(title string) Modal {
 	if m.NextModal != nil {
 		return m.NextModal
 	}
-
-	m.SubmittedState = m.parent.blockState
 
 	m.NextModal = &modalSlack{
 		BlocksSlack: &BlocksSlack{},

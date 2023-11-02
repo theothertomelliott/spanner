@@ -69,34 +69,10 @@ type messageSlack struct {
 	ChannelID    string `json:"channel_id"`
 	MessageIndex string `json:"message_index"`
 	unsent       bool
-
-	blockState map[string]map[string]slack.BlockAction
-}
-
-func (m *messageSlack) state() map[string]map[string]slack.BlockAction {
-	return m.blockState
 }
 
 func (m *messageSlack) Channel(channelID string) {
 	panic("not implemented")
-}
-
-func (m *messageSlack) Text(message string) {
-	m.addText(message)
-}
-
-func (m *messageSlack) Select(title string, options []string) string {
-	inputBlockID, inputSelectionID := m.addSelect(title, options)
-
-	// Retrieve the selected option from the state
-	if state := m.state(); state != nil {
-		viewState := state
-		if viewState[inputBlockID][inputSelectionID].SelectedOption.Text != nil {
-			return viewState[inputBlockID][inputSelectionID].SelectedOption.Text.Text
-		}
-	}
-
-	return ""
 }
 
 func (m *messageSlack) handleRequest(req requestSlack) error {
@@ -120,6 +96,6 @@ func (m *messageSlack) handleRequest(req requestSlack) error {
 }
 
 func (m *messageSlack) populateEvent(p eventPopulation) error {
-	m.blockState = p.interactionCallbackEvent.BlockActionState.Values
+	m.BlockState = p.interactionCallbackEvent.BlockActionState.Values
 	return nil
 }

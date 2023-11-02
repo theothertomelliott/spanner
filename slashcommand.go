@@ -19,7 +19,7 @@ func (is *slashCommandSlack) Modal(title string) Modal {
 		return is.ModalInternal
 	}
 	is.ModalInternal = &modalSlack{
-		blocksSlack: &blocksSlack{},
+		BlocksSlack: &BlocksSlack{},
 		Title:       title,
 		triggerID:   is.TriggerID,
 	}

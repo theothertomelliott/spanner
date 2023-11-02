@@ -1,7 +1,6 @@
 package chatframework
 
 import (
-	"crypto/sha1"
 	"fmt"
 
 	"github.com/slack-go/slack"
@@ -10,7 +9,7 @@ import (
 var _ Modal = &modalSlack{}
 
 type modalSlack struct {
-	*blocksSlack
+	*BlocksSlack `json:"blocks"` // This ensures that the value is not nil
 
 	Title      string                `json:"title"`
 	Submission *modalSubmissionSlack `json:"submission"`
@@ -147,8 +146,8 @@ func (m *modalSlack) handleRequest(req requestSlack) error {
 }
 
 func (m *modalSlack) populateEvent(p eventPopulation) error {
-	if m.blocksSlack == nil {
-		m.blocksSlack = &blocksSlack{}
+	if m.BlocksSlack == nil {
+		m.BlocksSlack = &BlocksSlack{}
 	}
 
 	if m.Submission != nil {
@@ -189,7 +188,7 @@ func (m *modalSubmissionSlack) Push(title string) Modal {
 	m.SubmittedState = m.parent.receivedView.State
 
 	m.NextModal = &modalSlack{
-		blocksSlack: &blocksSlack{},
+		BlocksSlack: &BlocksSlack{},
 		Title:       title,
 		HasParent:   true,
 	}
@@ -218,13 +217,4 @@ func (m *modalSubmissionSlack) populateEvent(p eventPopulation) error {
 	}
 
 	return nil
-}
-
-// Get sha1 from string
-func hashstr(txt string) string {
-	h := sha1.New()
-	h.Write([]byte(txt))
-	bs := h.Sum(nil)
-	sh := string(fmt.Sprintf("%x\n", bs))
-	return sh
 }

@@ -90,17 +90,20 @@ func parseSlackEvent(ev socketmode.Event) *eventSlack {
 				panic(err)
 			}
 			if out.state.SlashCommand != nil {
-				out.state.SlashCommand.populateEvent(eventPopulation{interactionCallbackEvent.Type, &interactionCallbackEvent.View})
+				out.state.SlashCommand.populateEvent(eventPopulation{interactionCallbackEvent.Type, &interactionCallbackEvent.View, interactionCallbackEvent.BlockActionState, ""})
 			}
 
 		} else if eventMeta := interactionCallbackEvent.Message.Metadata; eventMeta.EventType == "bot_message" {
+			printAsJson(interactionCallbackEvent.BlockActionState.Values)
+			messageIndex := eventMeta.EventPayload["message_index"].(string)
 			err := json.Unmarshal([]byte(eventMeta.EventPayload["metadata"].(string)), &out.state)
 			if err != nil {
 				panic(err)
 			}
 			if out.state.Message != nil {
-				out.state.Message.populateEvent(eventPopulation{interactionCallbackEvent.Type, &interactionCallbackEvent.View})
+				out.state.Message.populateEvent(eventPopulation{interactionCallbackEvent.Type, &interactionCallbackEvent.View, interactionCallbackEvent.BlockActionState, messageIndex})
 			}
+
 		} else {
 			fmt.Println("no metadata")
 		}
@@ -126,8 +129,16 @@ func (e *eventSlack) SlashCommand(command string) SlashCommand {
 }
 
 type eventPopulation struct {
-	interaction slack.InteractionType
-	view        *slack.View
+	interaction       slack.InteractionType
+	view              *slack.View
+	blockActionStates *slack.BlockActionStates
+	messageIndex      string
+}
 
-	// TODO: Get the state from a message
+func printAsJson(input interface{}) {
+	b, err := json.MarshalIndent(input, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(b))
 }

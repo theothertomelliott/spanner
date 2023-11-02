@@ -1,19 +1,19 @@
 package chatframework
 
 import (
+	"crypto/sha1"
 	"fmt"
 	"strings"
 
 	"github.com/slack-go/slack"
 )
 
-type blocksSlack struct {
+type BlocksSlack struct {
 	blocks  []slack.Block
 	inputID int
 }
 
-func (b *blocksSlack) addText(message string) {
-
+func (b *BlocksSlack) addText(message string) {
 	b.blocks = append(b.blocks, slack.NewSectionBlock(
 		&slack.TextBlockObject{
 			Type: slack.MarkdownType,
@@ -25,7 +25,7 @@ func (b *blocksSlack) addText(message string) {
 
 }
 
-func (b *blocksSlack) addSelect(text string, options []string) (inputBlockID string, inputSelectionID string) {
+func (b *BlocksSlack) addSelect(text string, options []string) (inputBlockID string, inputSelectionID string) {
 	defer func() {
 		b.inputID++
 	}()
@@ -66,4 +66,13 @@ func (b *blocksSlack) addSelect(text string, options []string) (inputBlockID str
 	)
 
 	return inputBlockID, inputSelectionID
+}
+
+// Get sha1 from string
+func hashstr(txt string) string {
+	h := sha1.New()
+	h.Write([]byte(txt))
+	bs := h.Sum(nil)
+	sh := string(fmt.Sprintf("%x", bs))
+	return sh
 }

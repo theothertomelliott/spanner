@@ -13,9 +13,8 @@ type receivedMessageSlack struct {
 
 	TextInternal string `json:"text"`
 
-	messages []*messageSlack
-
-	ChildMessage *messageSlack `json:"child_message"`
+	readMessageIndex int
+	Messages         []*messageSlack `json:"messages"`
 }
 
 func (m *receivedMessageSlack) Text() string {
@@ -23,20 +22,25 @@ func (m *receivedMessageSlack) Text() string {
 }
 
 func (m *receivedMessageSlack) SendMessage() Message {
-	message := &messageSlack{
-		blocksSlack: &blocksSlack{},
-		ChannelID:   m.ChannelInternal,
-		unsent:      true, // This means the message was created in this event loop
+	if m.readMessageIndex < len(m.Messages) {
+		fmt.Println("returned existing message")
+		return m.Messages[m.readMessageIndex]
 	}
-	m.messages = append(m.messages, message)
+	message := &messageSlack{
+		BlocksSlack:  &BlocksSlack{},
+		MessageIndex: fmt.Sprintf("%v", len(m.Messages)),
+		ChannelID:    m.ChannelInternal,
+		unsent:       true, // This means the message was created in this event loop
+
+	}
+	m.Messages = append(m.Messages, message)
+	m.readMessageIndex++
 
 	return message
 }
 
 func (m *receivedMessageSlack) handleRequest(req requestSlack) error {
-	for _, message := range m.messages {
-		m.ChildMessage = message
-
+	for _, message := range m.Messages {
 		err := message.handleRequest(req)
 		if err != nil {
 			return err
@@ -50,8 +54,10 @@ func (m *receivedMessageSlack) handleRequest(req requestSlack) error {
 }
 
 func (m *receivedMessageSlack) populateEvent(p eventPopulation) error {
-	if m.ChildMessage != nil {
-		return m.ChildMessage.populateEvent(p)
+	for _, message := range m.Messages {
+		if message.MessageIndex == p.messageIndex {
+			return message.populateEvent(p)
+		}
 	}
 	return nil
 }
@@ -59,11 +65,17 @@ func (m *receivedMessageSlack) populateEvent(p eventPopulation) error {
 var _ Message = &messageSlack{}
 
 type messageSlack struct {
-	*blocksSlack
+	*BlocksSlack `json:"blocks"` // This ensures that the value is not nil
 
 	ChannelID    string `json:"channel_id"`
 	MessageIndex string `json:"message_index"`
 	unsent       bool
+
+	blockActionStates *slack.BlockActionStates
+}
+
+func (m *messageSlack) state() *slack.BlockActionStates {
+	return m.blockActionStates
 }
 
 func (m *messageSlack) Channel(channelID string) {
@@ -75,9 +87,15 @@ func (m *messageSlack) Text(message string) {
 }
 
 func (m *messageSlack) Select(title string, options []string) string {
-	_, _ = m.addSelect(title, options)
+	inputBlockID, inputSelectionID := m.addSelect(title, options)
 
-	// TODO: get the state
+	// Retrieve the selected option from the state
+	if state := m.state(); state != nil {
+		viewState := state.Values
+		if viewState[inputBlockID][inputSelectionID].SelectedOption.Text != nil {
+			return viewState[inputBlockID][inputSelectionID].SelectedOption.Text.Text
+		}
+	}
 
 	return ""
 }
@@ -90,7 +108,8 @@ func (m *messageSlack) handleRequest(req requestSlack) error {
 			slack.MsgOptionMetadata(slack.SlackMetadata{
 				EventType: "bot_message",
 				EventPayload: map[string]interface{}{
-					"metadata": string(req.Metadata()),
+					"message_index": m.MessageIndex,
+					"metadata":      string(req.Metadata()),
 				},
 			}))
 		if err != nil {
@@ -102,6 +121,7 @@ func (m *messageSlack) handleRequest(req requestSlack) error {
 }
 
 func (m *messageSlack) populateEvent(p eventPopulation) error {
-
+	fmt.Println("populateEvent", p)
+	m.blockActionStates = p.blockActionStates
 	return nil
 }

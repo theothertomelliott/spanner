@@ -33,6 +33,9 @@ func handler(ev chatframework.Event) error {
 			outMessage.Text(fmt.Sprintf("Hello to you too: %v", msg.User()))
 			selectValue := outMessage.Select("Select", []string{"a", "b", "c"})
 			fmt.Println("Select:", selectValue)
+
+			out2 := msg.SendMessage()
+			out2.Text("Here's another message for good measure")
 		}
 	}
 	if testSlash := ev.SlashCommand("/testslash"); testSlash != nil {

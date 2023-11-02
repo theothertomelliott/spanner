@@ -8,10 +8,41 @@ import (
 	"github.com/slack-go/slack"
 )
 
+var _ BlockUI = &BlocksSlack{}
+
 type BlocksSlack struct {
-	blocks     []slack.Block
-	BlockState map[string]map[string]slack.BlockAction `json:"block_state"`
-	inputID    int
+	blocks      []slack.Block
+	BlockStates map[string]BlockState `json:"block_state"`
+	inputID     int
+}
+
+type BlockState struct {
+	String string `json:"s"`
+	Int    int    `json:"i"`
+}
+
+func blockActionToState(in map[string]map[string]slack.BlockAction) map[string]BlockState {
+	out := make(map[string]BlockState)
+
+	for blockID, block := range in {
+		state := BlockState{}
+		if len(block) != 1 {
+			panic("expected one block action id per block")
+		}
+		for _, action := range block {
+			if action.SelectedOption.Value != "" {
+				state.String = action.SelectedOption.Text.Text
+				continue
+			}
+			if action.Value != "" {
+				state.String = action.Value
+				continue
+			}
+		}
+		out[blockID] = state
+	}
+
+	return out
 }
 
 func (b *BlocksSlack) Text(message string) {
@@ -31,24 +62,88 @@ func (b *BlocksSlack) addText(message string) {
 		nil,
 		nil,
 	))
-
 }
 
-func (b *BlocksSlack) Select(title string, options []string) string {
-	inputBlockID, inputSelectionID := b.addSelect(title, options)
+func (b *BlocksSlack) Divider() {
+	if b == nil {
+		return
+	}
 
-	// Retrieve the selected option from the state
+	b.blocks = append(b.blocks, slack.NewDividerBlock())
+}
+
+func (b *BlocksSlack) TextInput(label, hint, placeholder string) string {
+	inputBlockID, _ := b.addTextInput(label, hint, placeholder, false)
+
+	// Retrieve the text from the state
 	if state := b.state(); state != nil {
 		viewState := state
-		if viewState[inputBlockID][inputSelectionID].SelectedOption.Text != nil {
-			return viewState[inputBlockID][inputSelectionID].SelectedOption.Text.Text
+		if state, ok := viewState[inputBlockID]; ok {
+			return state.String
 		}
 	}
 
 	return ""
 }
 
-func (b *BlocksSlack) addSelect(text string, options []string) (inputBlockID string, inputSelectionID string) {
+func (b *BlocksSlack) MultilineTextInput(label, hint, placeholder string) string {
+	inputBlockID, _ := b.addTextInput(label, hint, placeholder, true)
+
+	// Retrieve the text from the state
+	if state := b.state(); state != nil {
+		viewState := state
+		if state, ok := viewState[inputBlockID]; ok {
+			return state.String
+		}
+	}
+
+	return ""
+}
+
+func (b *BlocksSlack) addTextInput(label, hint, placeholder string, multiline bool) (string, string) {
+	defer func() {
+		b.inputID++
+	}()
+
+	inputBlockID := fmt.Sprintf("input-%v", b.inputID)
+	inputActionID := fmt.Sprintf("input%vaction", b.inputID)
+
+	textInput := slack.NewPlainTextInputBlockElement(
+		slack.NewTextBlockObject(slack.PlainTextType, placeholder, false, false),
+		inputActionID,
+	)
+	textInput.Multiline = true
+
+	input := slack.NewInputBlock(
+		inputBlockID,
+		slack.NewTextBlockObject(slack.PlainTextType, label, false, false),
+		slack.NewTextBlockObject(slack.PlainTextType, hint, false, false),
+		textInput,
+	)
+	input.DispatchAction = true
+
+	b.blocks = append(b.blocks,
+		input,
+	)
+
+	return inputBlockID, inputActionID
+}
+
+func (b *BlocksSlack) Select(title string, options []string) string {
+	inputBlockID, _ := b.addSelect(title, options)
+
+	// Retrieve the selected option from the state
+	if state := b.state(); state != nil {
+		viewState := state
+		if state, ok := viewState[inputBlockID]; ok {
+			return state.String
+		}
+	}
+
+	return ""
+}
+
+func (b *BlocksSlack) addSelect(text string, options []string) (inputBlockID string, inputActionID string) {
 	defer func() {
 		b.inputID++
 	}()
@@ -56,7 +151,7 @@ func (b *BlocksSlack) addSelect(text string, options []string) (inputBlockID str
 	optionHash := hashstr(strings.Join(options, ","))
 
 	inputBlockID = fmt.Sprintf("input-%v-%v", optionHash, b.inputID)
-	inputSelectionID = fmt.Sprintf("input%vselection", b.inputID)
+	inputActionID = fmt.Sprintf("input%vaction", b.inputID)
 
 	var optionObjects []*slack.OptionBlockObject
 	for index, option := range options {
@@ -78,7 +173,7 @@ func (b *BlocksSlack) addSelect(text string, options []string) (inputBlockID str
 		slack.NewOptionsSelectBlockElement(
 			slack.OptTypeStatic,
 			slack.NewTextBlockObject(slack.PlainTextType, text, false, false),
-			inputSelectionID,
+			inputActionID,
 			optionObjects...,
 		),
 	)
@@ -88,12 +183,12 @@ func (b *BlocksSlack) addSelect(text string, options []string) (inputBlockID str
 		input,
 	)
 
-	return inputBlockID, inputSelectionID
+	return inputBlockID, inputActionID
 }
 
-func (m *BlocksSlack) state() map[string]map[string]slack.BlockAction {
-	if m.BlockState != nil {
-		return m.BlockState
+func (m *BlocksSlack) state() map[string]BlockState {
+	if m.BlockStates != nil {
+		return m.BlockStates
 	}
 	return nil
 }

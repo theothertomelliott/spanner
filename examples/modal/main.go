@@ -34,6 +34,8 @@ func handler(ev chatframework.Event) error {
 			selectValue := outMessage.Select("Select", []string{"a", "b", "c"})
 			fmt.Println("Select:", selectValue)
 
+			outMessage.Divider()
+
 			select2Value := outMessage.Select("Select 2", []string{"d", "e", "f"})
 			fmt.Println("Select 2:", select2Value)
 
@@ -83,6 +85,12 @@ func handler(ev chatframework.Event) error {
 
 				dropdown := modal2.Select("Dropdown", []string{"a", "b", "c"})
 				fmt.Println("Dropdown:", dropdown)
+
+				singleLine := modal2.TextInput("Single line", "Hint", "Placeholder")
+				fmt.Println("Single line:", singleLine)
+
+				multiLine := modal2.MultilineTextInput("Multi line", "Hint", "Placeholder")
+				fmt.Println("Multi line:", multiLine)
 
 				if modal2.Submit("Submit") != nil {
 					fmt.Println("Final submission")

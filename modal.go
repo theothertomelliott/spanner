@@ -85,6 +85,8 @@ func (m *modalSlack) handleRequest(req requestSlack) error {
 
 	modal := m.render()
 	modal.PrivateMetadata = string(req.Metadata())
+	fmt.Println("Metadata:", string(modal.PrivateMetadata))
+	fmt.Println("Metadata length:", len(modal.PrivateMetadata))
 
 	var payload interface{} = map[string]interface{}{}
 
@@ -106,7 +108,11 @@ func (m *modalSlack) handleRequest(req requestSlack) error {
 			m.ViewID,
 		)
 		if err != nil {
-			return fmt.Errorf("updating view: %w", err)
+			if slackErr, ok := err.(slack.SlackErrorResponse); ok {
+				return fmt.Errorf("updating view: %w %v %v", slackErr, slackErr.ResponseMetadata.Messages, slackErr.ResponseMetadata.Warnings)
+			} else {
+				return fmt.Errorf("updating view: %T %w", err, err)
+			}
 		}
 	}
 
@@ -126,7 +132,7 @@ func (m *modalSlack) populateEvent(p eventPopulation) error {
 
 	m.ViewExternalID = p.interactionCallbackEvent.View.ExternalID
 	m.ViewID = p.interactionCallbackEvent.View.ID
-	m.BlockState = p.interactionCallbackEvent.View.State.Values
+	m.BlockStates = blockActionToState(p.interactionCallbackEvent.View.State.Values)
 
 	if p.interaction == slack.InteractionTypeBlockActions {
 		m.update = action

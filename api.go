@@ -21,6 +21,9 @@ type SlashCommand interface {
 
 type BlockUI interface {
 	Text(message string)
+	TextInput(label string, hint string, placeholder string) string
+	MultilineTextInput(label string, hint string, placeholder string) string
+	Divider()
 	Select(title string, options []string) string
 }
 

@@ -96,6 +96,6 @@ func (m *messageSlack) handleRequest(req requestSlack) error {
 }
 
 func (m *messageSlack) populateEvent(p eventPopulation) error {
-	m.BlockState = p.interactionCallbackEvent.BlockActionState.Values
+	m.BlockStates = blockActionToState(p.interactionCallbackEvent.BlockActionState.Values)
 	return nil
 }

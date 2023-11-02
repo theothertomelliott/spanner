@@ -13,7 +13,7 @@ type receivedMessageSlack struct {
 
 	TextInternal string `json:"text"`
 
-	readMessageIndex int
+	readMessageIndex int             // track offset of messages so we don't create extra when processing actions
 	Messages         []*messageSlack `json:"messages"`
 }
 
@@ -23,7 +23,6 @@ func (m *receivedMessageSlack) Text() string {
 
 func (m *receivedMessageSlack) SendMessage() Message {
 	if m.readMessageIndex < len(m.Messages) {
-		fmt.Println("returned existing message")
 		return m.Messages[m.readMessageIndex]
 	}
 	message := &messageSlack{
@@ -121,7 +120,6 @@ func (m *messageSlack) handleRequest(req requestSlack) error {
 }
 
 func (m *messageSlack) populateEvent(p eventPopulation) error {
-	fmt.Println("populateEvent", p)
 	m.blockActionStates = p.blockActionStates
 	return nil
 }

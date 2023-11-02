@@ -94,7 +94,6 @@ func parseSlackEvent(ev socketmode.Event) *eventSlack {
 			}
 
 		} else if eventMeta := interactionCallbackEvent.Message.Metadata; eventMeta.EventType == "bot_message" {
-			printAsJson(interactionCallbackEvent.BlockActionState.Values)
 			messageIndex := eventMeta.EventPayload["message_index"].(string)
 			err := json.Unmarshal([]byte(eventMeta.EventPayload["metadata"].(string)), &out.state)
 			if err != nil {
@@ -133,12 +132,4 @@ type eventPopulation struct {
 	view              *slack.View
 	blockActionStates *slack.BlockActionStates
 	messageIndex      string
-}
-
-func printAsJson(input interface{}) {
-	b, err := json.MarshalIndent(input, "", "  ")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(string(b))
 }

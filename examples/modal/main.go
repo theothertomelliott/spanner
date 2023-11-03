@@ -27,19 +27,21 @@ func handler(ev chatframework.Event) error {
 	if msg := ev.ReceiveMessage(); msg != nil {
 		fmt.Println("Received a message:", msg.Text())
 		if msg.Text() == "hello" {
-			fmt.Printf("got a hello from user %v in channel %v\n", msg.User(), msg.Channel())
 			outMessage := msg.SendMessage()
 			outMessage.Text(fmt.Sprintf("Hello to you too: %v", msg.User()))
 			selectValue := outMessage.Select("Select", []string{"a", "b", "c"})
-			fmt.Println("Select:", selectValue)
 
 			outMessage.Divider()
 
 			select2Value := outMessage.Select("Select 2", []string{"d", "e", "f"})
-			fmt.Println("Select 2:", select2Value)
 
 			out2 := msg.SendMessage()
 			out2.Text("Here's another message for good measure")
+
+			if select2Value != "" && selectValue != "" {
+				result := msg.SendMessage()
+				result.Text(fmt.Sprintf("You selected %v and %v", selectValue, select2Value))
+			}
 		}
 	}
 	if testSlash := ev.SlashCommand("/testslash"); testSlash != nil {

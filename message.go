@@ -48,7 +48,7 @@ type messageSlack struct {
 }
 
 func (m *messageSlack) Channel(channelID string) {
-	panic("not implemented")
+	m.ChannelID = channelID
 }
 
 func (m *messageSlack) handleRequest(req requestSlack) error {

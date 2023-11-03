@@ -12,13 +12,13 @@ var _ BlockUI = &BlocksSlack{}
 
 type BlocksSlack struct {
 	blocks      []slack.Block
-	BlockStates map[string]BlockState `json:"block_state"`
+	BlockStates map[string]BlockState `json:"block_state,omitempty"`
 	inputID     int
 }
 
 type BlockState struct {
-	String string `json:"s"`
-	Int    int    `json:"i"`
+	String string `json:"s,omitempty"`
+	Int    int    `json:"i,omitempty"`
 }
 
 func blockActionToState(in map[string]map[string]slack.BlockAction) map[string]BlockState {

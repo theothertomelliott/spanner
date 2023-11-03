@@ -27,7 +27,6 @@ func handler(ev chatframework.Event) error {
 	if msg := ev.ReceiveMessage(); msg != nil {
 		fmt.Println("Received a message:", msg.Text())
 		if msg.Text() == "hello" {
-			// TODO: Send a reply message
 			fmt.Printf("got a hello from user %v in channel %v\n", msg.User(), msg.Channel())
 			outMessage := msg.SendMessage()
 			outMessage.Text(fmt.Sprintf("Hello to you too: %v", msg.User()))
@@ -92,8 +91,10 @@ func handler(ev chatframework.Event) error {
 				multiLine := modal2.MultilineTextInput("Multi line", "Hint", "Placeholder")
 				fmt.Println("Multi line:", multiLine)
 
-				if modal2.Submit("Submit") != nil {
-					fmt.Println("Final submission")
+				if submit := modal2.Submit("Submit"); submit != nil {
+					msg := submit.SendMessage()
+					msg.Text(fmt.Sprintf("You selected %v, %v, %v", tensOutput, unitsOutput, dropdown))
+					msg.Text(fmt.Sprintf("You entered %q, %q", singleLine, multiLine))
 				}
 			}
 		}

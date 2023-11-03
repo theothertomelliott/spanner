@@ -14,6 +14,7 @@ type modalSlack struct {
 	Title      string                `json:"title"`
 	Submission *modalSubmissionSlack `json:"submission"`
 	HasParent  bool                  `json:"has_parent"`
+	ChannelID  string                `json:"channel_id"`
 
 	ViewID         string `json:"view_id"`
 	ViewExternalID string `json:"view_external_id"`
@@ -139,6 +140,9 @@ func (m *modalSlack) populateEvent(p eventPopulation) error {
 	}
 	if p.interaction == slack.InteractionTypeViewSubmission {
 		m.Submission = &modalSubmissionSlack{
+			MessageSenderSlack: &MessageSenderSlack{
+				defaultChannelID: m.ChannelID,
+			},
 			parent: m,
 		}
 		m.update = submitted
@@ -153,6 +157,8 @@ func (m *modalSlack) populateEvent(p eventPopulation) error {
 var _ ModalSubmission = &modalSubmissionSlack{}
 
 type modalSubmissionSlack struct {
+	*MessageSenderSlack `json:"ms"`
+
 	NextModal *modalSlack `json:"next_modal"`
 
 	parent *modalSlack
@@ -165,17 +171,19 @@ func (m *modalSubmissionSlack) Push(title string) Modal {
 
 	m.NextModal = &modalSlack{
 		BlocksSlack: &BlocksSlack{},
+		ChannelID:   m.parent.ChannelID,
 		Title:       title,
 		HasParent:   true,
 	}
 	return m.NextModal
 }
 
-func (m *modalSubmissionSlack) Message() Message {
-	return nil
-}
-
 func (m *modalSubmissionSlack) handleRequest(req requestSlack) error {
+	err := m.MessageSenderSlack.sendMessages(req)
+	if err != nil {
+		return err
+	}
+
 	if m.NextModal != nil {
 		return m.NextModal.handleRequest(req)
 	}
@@ -188,6 +196,11 @@ func (m *modalSubmissionSlack) handleRequest(req requestSlack) error {
 }
 
 func (m *modalSubmissionSlack) populateEvent(p eventPopulation) error {
+	err := m.MessageSenderSlack.populateEvent(p)
+	if err != nil {
+		return err
+	}
+
 	if m.NextModal != nil {
 		return m.NextModal.populateEvent(p)
 	}

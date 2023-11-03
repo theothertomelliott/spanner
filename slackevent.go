@@ -48,8 +48,12 @@ func parseSlackEvent(ev socketmode.Event) *eventSlack {
 
 		out.state.SlashCommand = &slashCommandSlack{
 			eventMetadataSlack: out.state.Metadata,
-			TriggerID:          cmd.TriggerID,
-			Command:            cmd.Command,
+			MessageSenderSlack: &MessageSenderSlack{
+				defaultChannelID: out.state.Metadata.ChannelInternal,
+			},
+
+			TriggerID: cmd.TriggerID,
+			Command:   cmd.Command,
 		}
 		return out
 	}
@@ -69,6 +73,9 @@ func parseSlackEvent(ev socketmode.Event) *eventSlack {
 				out.state.Message = &receivedMessageSlack{
 					eventMetadataSlack: out.state.Metadata,
 					TextInternal:       ev.Text,
+					MessageSenderSlack: &MessageSenderSlack{
+						defaultChannelID: out.state.Metadata.ChannelInternal,
+					},
 				}
 			}
 			return out

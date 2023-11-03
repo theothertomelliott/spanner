@@ -10,40 +10,15 @@ var _ ReceivedMessage = &receivedMessageSlack{}
 
 type receivedMessageSlack struct {
 	eventMetadataSlack
+	*MessageSenderSlack `json:"ms"`
 
 	TextInternal string `json:"text"`
-
-	readMessageIndex int             // track offset of messages so we don't create extra when processing actions
-	Messages         []*messageSlack `json:"messages"`
-}
-
-func (m *receivedMessageSlack) Text() string {
-	return m.TextInternal
-}
-
-func (m *receivedMessageSlack) SendMessage() Message {
-	if m.readMessageIndex < len(m.Messages) {
-		return m.Messages[m.readMessageIndex]
-	}
-	message := &messageSlack{
-		BlocksSlack:  &BlocksSlack{},
-		MessageIndex: fmt.Sprintf("%v", len(m.Messages)),
-		ChannelID:    m.ChannelInternal,
-		unsent:       true, // This means the message was created in this event loop
-
-	}
-	m.Messages = append(m.Messages, message)
-	m.readMessageIndex++
-
-	return message
 }
 
 func (m *receivedMessageSlack) handleRequest(req requestSlack) error {
-	for _, message := range m.Messages {
-		err := message.handleRequest(req)
-		if err != nil {
-			return err
-		}
+	err := m.MessageSenderSlack.sendMessages(req)
+	if err != nil {
+		return err
 	}
 
 	var payload interface{} = map[string]interface{}{}
@@ -53,9 +28,10 @@ func (m *receivedMessageSlack) handleRequest(req requestSlack) error {
 }
 
 func (m *receivedMessageSlack) populateEvent(p eventPopulation) error {
-	for _, message := range m.Messages {
-		if message.MessageIndex == p.messageIndex {
-			return message.populateEvent(p)
+	if m.MessageSenderSlack != nil {
+		err := m.MessageSenderSlack.populateEvent(p)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -97,5 +73,52 @@ func (m *messageSlack) handleRequest(req requestSlack) error {
 
 func (m *messageSlack) populateEvent(p eventPopulation) error {
 	m.BlockStates = blockActionToState(p.interactionCallbackEvent.BlockActionState.Values)
+	return nil
+}
+
+type MessageSenderSlack struct {
+	readMessageIndex int             // track offset of messages so we don't create extra when processing actions
+	Messages         []*messageSlack `json:"messages"`
+
+	defaultChannelID string
+}
+
+func (m *receivedMessageSlack) Text() string {
+	return m.TextInternal
+}
+
+func (m *MessageSenderSlack) SendMessage() Message {
+	if m.readMessageIndex < len(m.Messages) {
+		return m.Messages[m.readMessageIndex]
+	}
+	message := &messageSlack{
+		BlocksSlack:  &BlocksSlack{},
+		MessageIndex: fmt.Sprintf("%v", len(m.Messages)),
+		ChannelID:    m.defaultChannelID,
+		unsent:       true, // This means the message was created in this event loop
+
+	}
+	m.Messages = append(m.Messages, message)
+	m.readMessageIndex++
+
+	return message
+}
+
+func (m *MessageSenderSlack) sendMessages(req requestSlack) error {
+	for _, message := range m.Messages {
+		err := message.handleRequest(req)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *MessageSenderSlack) populateEvent(p eventPopulation) error {
+	for _, message := range m.Messages {
+		if message.MessageIndex == p.messageIndex {
+			return message.populateEvent(p)
+		}
+	}
 	return nil
 }

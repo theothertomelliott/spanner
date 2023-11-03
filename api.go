@@ -9,14 +9,19 @@ type Event interface {
 	SlashCommand(command string) SlashCommand
 }
 
-type Interaction interface {
+type MessageSender interface {
+	SendMessage() Message
+}
+
+type ModalCreator interface {
 	Modal(title string) Modal
-	Message() Message
 }
 
 type SlashCommand interface {
 	Metadata
-	Interaction
+
+	MessageSender
+	ModalCreator
 }
 
 type BlockUI interface {
@@ -34,8 +39,8 @@ type Modal interface {
 }
 
 type ModalSubmission interface {
+	MessageSender
 	Push(title string) Modal
-	Message() Message
 }
 
 type Metadata interface {
@@ -45,8 +50,8 @@ type Metadata interface {
 
 type ReceivedMessage interface {
 	Metadata
+	MessageSender
 	Text() string
-	SendMessage() Message
 }
 
 type Message interface {

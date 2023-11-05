@@ -18,6 +18,7 @@ func main() {
 		log.Fatal(err)
 	}
 
+	fmt.Println("You can trigger a modal using the command `/testslash`")
 	err = app.Run(handler)
 	if err != nil {
 		log.Fatal(err)
@@ -25,29 +26,6 @@ func main() {
 }
 
 func handler(ev chatframework.Event) error {
-	if msg := ev.ReceiveMessage(); msg != nil {
-		fmt.Println("Received a message:", msg.Text())
-		if msg.Text() == "hello" {
-			fmt.Println("text =", msg.Text())
-			outMessage := msg.SendMessage()
-			outMessage.Text(fmt.Sprintf("Hello to you too: %v", msg.User()))
-			selectValue := outMessage.Select("Select", []string{"a", "b", "c"})
-
-			outMessage.Divider()
-
-			select2Value := outMessage.Select("Select 2", []string{"d", "e", "f"})
-
-			out2 := msg.SendMessage()
-			out2.Text("Here's another message for good measure")
-
-			fmt.Println("Selects: ", selectValue, select2Value)
-			if select2Value != "" && selectValue != "" {
-				fmt.Println("Sending additional response")
-				result := msg.SendMessage()
-				result.Text(fmt.Sprintf("You selected %v and %v", selectValue, select2Value))
-			}
-		}
-	}
 	if testSlash := ev.SlashCommand("/testslash"); testSlash != nil {
 		fmt.Printf("Handling /testslash from user %v in channel %v\n", testSlash.User(), testSlash.Channel())
 		modal := testSlash.Modal("My Modal")
@@ -99,6 +77,7 @@ func handler(ev chatframework.Event) error {
 
 				if submit := modal2.Submit("Submit"); submit != nil {
 					msg := submit.SendMessage()
+					msg.Text("Thank you for completing our modal view.")
 					msg.Text(fmt.Sprintf("You selected %v, %v, %v", tensOutput, unitsOutput, dropdown))
 					msg.Text(fmt.Sprintf("You entered %q, %q", singleLine, multiLine))
 				}

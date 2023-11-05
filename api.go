@@ -40,15 +40,6 @@ type SlashCommand interface {
 	ModalCreator
 }
 
-// BlockUI allows the creation of Slack blocks in a message or modal.
-type BlockUI interface {
-	Text(message string)
-	TextInput(label string, hint string, placeholder string) string
-	MultilineTextInput(label string, hint string, placeholder string) string
-	Divider()
-	Select(title string, options []string) string
-}
-
 // Modal represents a Slack modal view.
 // It can be used to create blocks and handle submission or closing of the modal.
 type Modal interface {

@@ -32,7 +32,7 @@ func blockActionToState(in map[string]map[string]slack.BlockAction) map[string]B
 		}
 		for _, action := range block {
 			if action.SelectedOption.Value != "" {
-				state.String = action.SelectedOption.Text.Text
+				state.String = action.SelectedOption.Value
 				continue
 			}
 			if action.Value != "" {
@@ -130,7 +130,7 @@ func (b *Blocks) addTextInput(label, hint, placeholder string, multiline bool) (
 	return inputBlockID, inputActionID
 }
 
-func (b *Blocks) Select(title string, options []string) string {
+func (b *Blocks) Select(title string, options []chatframework.SelectOption) string {
 	inputBlockID, _ := b.addSelect(title, options)
 
 	// Retrieve the selected option from the state
@@ -144,25 +144,32 @@ func (b *Blocks) Select(title string, options []string) string {
 	return ""
 }
 
-func (b *Blocks) addSelect(text string, options []string) (inputBlockID string, inputActionID string) {
+func (b *Blocks) addSelect(text string, options []chatframework.SelectOption) (inputBlockID string, inputActionID string) {
 	defer func() {
 		b.inputID++
 	}()
 
-	optionHash := hashstr(strings.Join(options, ","))
+	var values []string
+	for _, option := range options {
+		values = append(values, option.Value)
+	}
+	optionHash := hashstr(strings.Join(values, ","))
 
 	inputBlockID = fmt.Sprintf("input-%v-%v", optionHash, b.inputID)
 	inputActionID = fmt.Sprintf("input%vaction", b.inputID)
 
 	var optionObjects []*slack.OptionBlockObject
-	for index, option := range options {
-		optionID := fmt.Sprintf("input%voption%v", b.inputID, index)
+	for _, option := range options {
+		var description *slack.TextBlockObject
+		if option.Description != "" {
+			description = slack.NewTextBlockObject(slack.PlainTextType, option.Description, false, false)
+		}
 		optionObjects = append(
 			optionObjects,
 			slack.NewOptionBlockObject(
-				optionID,
-				slack.NewTextBlockObject(slack.PlainTextType, option, false, false),
-				nil,
+				option.Value,
+				slack.NewTextBlockObject(slack.PlainTextType, option.Label, false, false),
+				description,
 			),
 		)
 	}

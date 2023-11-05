@@ -35,38 +35,43 @@ func handler(ev chatframework.Event) error {
 			return nil
 		}
 
-		modal.Text("Got your slash command")
+		modal.Text("Step 1: Choose a number")
 		tensOptions := []string{}
 		for i := 0; i < 10; i++ {
 			tensOptions = append(tensOptions, fmt.Sprint(i))
 		}
-		tensOutput := modal.Select("Tens", tensOptions)
+		tensOutput := modal.Select("Tens", chatframework.SelectOptions(tensOptions...))
 		fmt.Println("Tens:", tensOutput)
 
-		unitsOutput := ""
+		finalNumber := ""
 		if tensOutput != "" {
 
-			unitsOptions := []string{}
+			unitsOptions := []chatframework.SelectOption{}
 			for i := 0; i < 10; i++ {
 				tensPrefix := tensOutput
 				if tensPrefix == "0" {
 					tensPrefix = ""
 				}
-				unitsOptions = append(unitsOptions, fmt.Sprintf("%v%v", tensPrefix, i))
+				unit := chatframework.SelectOption{
+					Label:       fmt.Sprint(i),
+					Value:       fmt.Sprintf("%v%v", tensPrefix, i),
+					Description: fmt.Sprintf("returns %v%v", tensPrefix, i),
+				}
+				unitsOptions = append(unitsOptions, unit)
 			}
 
-			unitsOutput = modal.Select("Units", unitsOptions)
-			fmt.Println("Units:", unitsOutput)
+			finalNumber = modal.Select("Units", unitsOptions)
+			fmt.Println("Final Number:", finalNumber)
 		}
 
-		if unitsOutput != "" {
+		if finalNumber != "" {
 			if submit := modal.Submit("Submit"); submit != nil {
-				fmt.Println("Submitted: ", tensOutput, unitsOutput)
+				fmt.Println("Your number:", finalNumber)
 
 				modal2 := submit.Push("Step 2")
 				modal2.Text("Hello")
 
-				dropdown := modal2.Select("Dropdown", []string{"a", "b", "c"})
+				dropdown := modal2.Select("Dropdown", chatframework.SelectOptions("a", "b", "c"))
 				fmt.Println("Dropdown:", dropdown)
 
 				singleLine := modal2.TextInput("Single line", "Hint", "Placeholder")
@@ -78,8 +83,8 @@ func handler(ev chatframework.Event) error {
 				if submit := modal2.Submit("Submit"); submit != nil {
 					msg := submit.SendMessage()
 					msg.Text("Thank you for completing our modal view.")
-					msg.Text(fmt.Sprintf("You selected %v, %v, %v", tensOutput, unitsOutput, dropdown))
-					msg.Text(fmt.Sprintf("You entered %q, %q", singleLine, multiLine))
+					msg.Text(fmt.Sprintf("Your number was %v", finalNumber))
+					msg.Text(fmt.Sprintf("You entered %v, %q and %q in the second view", dropdown, singleLine, multiLine))
 				}
 			}
 		}

@@ -78,7 +78,7 @@ err = app.Run(func(ev chatframework.Event) error {
         reply := msg.SendMessage()
         reply.Text(fmt.Sprintf("Hello to you too: %v", msg.User()))
 
-        letter := reply.Select("Pick a letter", []string{"a", "b", "c"})
+		letter := reply.Select("Pick a letter", chatframework.SelectOptions("a", "b", "c"))
         if letter != "" {
             msg.SendMessage().Text(fmt.Sprintf("You chose %q", letter))
         }

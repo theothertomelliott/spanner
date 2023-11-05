@@ -22,8 +22,17 @@ type BlockState struct {
 	Int    int    `json:"i,omitempty"`
 }
 
-func blockActionToState(in map[string]map[string]slack.BlockAction) map[string]BlockState {
+func blockActionToState(p eventPopulation) map[string]BlockState {
+	in := p.interactionCallbackEvent.BlockActionState.Values
 	out := make(map[string]BlockState)
+
+	for _, action := range p.interactionCallbackEvent.ActionCallback.BlockActions {
+		if action.Type == "button" {
+			state := BlockState{}
+			state.String = action.Text.Text
+			out[action.BlockID] = state
+		}
+	}
 
 	for blockID, block := range in {
 		state := BlockState{}
@@ -51,10 +60,6 @@ func (b *Blocks) Text(message string) {
 		return
 	}
 
-	b.addText(message)
-}
-
-func (b *Blocks) addText(message string) {
 	b.blocks = append(b.blocks, slack.NewSectionBlock(
 		&slack.TextBlockObject{
 			Type: slack.MarkdownType,
@@ -192,6 +197,36 @@ func (b *Blocks) addSelect(text string, options []chatframework.SelectOption) (i
 	)
 
 	return inputBlockID, inputActionID
+}
+
+func (b *Blocks) Button(label string) bool {
+	defer func() {
+		b.inputID++
+	}()
+
+	inputBlockID := fmt.Sprintf("input-%v", b.inputID)
+	inputActionID := fmt.Sprintf("input%vaction", b.inputID)
+
+	buttonInput := slack.NewButtonBlockElement(
+		inputActionID,
+		label,
+		slack.NewTextBlockObject(slack.PlainTextType, label, false, false),
+	)
+	actions := slack.NewActionBlock(inputBlockID, buttonInput)
+
+	b.blocks = append(b.blocks,
+		actions,
+	)
+
+	// Retrieve the selected option from the state
+	if state := b.state(); state != nil {
+		viewState := state
+		if state, ok := viewState[inputBlockID]; ok {
+			return state.String == label
+		}
+	}
+
+	return false
 }
 
 func (m *Blocks) state() map[string]BlockState {

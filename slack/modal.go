@@ -130,7 +130,7 @@ func (m *modal) populateEvent(p eventPopulation) error {
 
 	m.ViewExternalID = p.interactionCallbackEvent.View.ExternalID
 	m.ViewID = p.interactionCallbackEvent.View.ID
-	m.BlockStates = blockActionToState(p.interactionCallbackEvent.View.State.Values)
+	m.BlockStates = blockActionToState(p)
 
 	if p.interaction == slack.InteractionTypeBlockActions {
 		m.update = action

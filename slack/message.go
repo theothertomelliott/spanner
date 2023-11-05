@@ -73,7 +73,7 @@ func (m *message) handleRequest(req request) error {
 }
 
 func (m *message) populateEvent(p eventPopulation) error {
-	m.BlockStates = blockActionToState(p.interactionCallbackEvent.BlockActionState.Values)
+	m.BlockStates = blockActionToState(p)
 	return nil
 }
 

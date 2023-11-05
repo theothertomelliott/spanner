@@ -113,7 +113,7 @@ func (b *Blocks) addTextInput(label, hint, placeholder string, multiline bool) (
 		slack.NewTextBlockObject(slack.PlainTextType, placeholder, false, false),
 		inputActionID,
 	)
-	textInput.Multiline = true
+	textInput.Multiline = multiline
 
 	input := slack.NewInputBlock(
 		inputBlockID,

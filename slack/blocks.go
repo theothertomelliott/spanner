@@ -1,4 +1,4 @@
-package chatframework
+package slack
 
 import (
 	"crypto/sha1"
@@ -6,11 +6,12 @@ import (
 	"strings"
 
 	"github.com/slack-go/slack"
+	"github.com/theothertomelliott/chatframework"
 )
 
-var _ BlockUI = &BlocksSlack{}
+var _ chatframework.BlockUI = &Blocks{}
 
-type BlocksSlack struct {
+type Blocks struct {
 	blocks      []slack.Block
 	BlockStates map[string]BlockState `json:"block_state,omitempty"`
 	inputID     int
@@ -45,7 +46,7 @@ func blockActionToState(in map[string]map[string]slack.BlockAction) map[string]B
 	return out
 }
 
-func (b *BlocksSlack) Text(message string) {
+func (b *Blocks) Text(message string) {
 	if b == nil {
 		return
 	}
@@ -53,7 +54,7 @@ func (b *BlocksSlack) Text(message string) {
 	b.addText(message)
 }
 
-func (b *BlocksSlack) addText(message string) {
+func (b *Blocks) addText(message string) {
 	b.blocks = append(b.blocks, slack.NewSectionBlock(
 		&slack.TextBlockObject{
 			Type: slack.MarkdownType,
@@ -64,7 +65,7 @@ func (b *BlocksSlack) addText(message string) {
 	))
 }
 
-func (b *BlocksSlack) Divider() {
+func (b *Blocks) Divider() {
 	if b == nil {
 		return
 	}
@@ -72,7 +73,7 @@ func (b *BlocksSlack) Divider() {
 	b.blocks = append(b.blocks, slack.NewDividerBlock())
 }
 
-func (b *BlocksSlack) TextInput(label, hint, placeholder string) string {
+func (b *Blocks) TextInput(label, hint, placeholder string) string {
 	inputBlockID, _ := b.addTextInput(label, hint, placeholder, false)
 
 	// Retrieve the text from the state
@@ -86,7 +87,7 @@ func (b *BlocksSlack) TextInput(label, hint, placeholder string) string {
 	return ""
 }
 
-func (b *BlocksSlack) MultilineTextInput(label, hint, placeholder string) string {
+func (b *Blocks) MultilineTextInput(label, hint, placeholder string) string {
 	inputBlockID, _ := b.addTextInput(label, hint, placeholder, true)
 
 	// Retrieve the text from the state
@@ -100,7 +101,7 @@ func (b *BlocksSlack) MultilineTextInput(label, hint, placeholder string) string
 	return ""
 }
 
-func (b *BlocksSlack) addTextInput(label, hint, placeholder string, multiline bool) (string, string) {
+func (b *Blocks) addTextInput(label, hint, placeholder string, multiline bool) (string, string) {
 	defer func() {
 		b.inputID++
 	}()
@@ -129,7 +130,7 @@ func (b *BlocksSlack) addTextInput(label, hint, placeholder string, multiline bo
 	return inputBlockID, inputActionID
 }
 
-func (b *BlocksSlack) Select(title string, options []string) string {
+func (b *Blocks) Select(title string, options []string) string {
 	inputBlockID, _ := b.addSelect(title, options)
 
 	// Retrieve the selected option from the state
@@ -143,7 +144,7 @@ func (b *BlocksSlack) Select(title string, options []string) string {
 	return ""
 }
 
-func (b *BlocksSlack) addSelect(text string, options []string) (inputBlockID string, inputActionID string) {
+func (b *Blocks) addSelect(text string, options []string) (inputBlockID string, inputActionID string) {
 	defer func() {
 		b.inputID++
 	}()
@@ -186,7 +187,7 @@ func (b *BlocksSlack) addSelect(text string, options []string) (inputBlockID str
 	return inputBlockID, inputActionID
 }
 
-func (m *BlocksSlack) state() map[string]BlockState {
+func (m *Blocks) state() map[string]BlockState {
 	if m.BlockStates != nil {
 		return m.BlockStates
 	}

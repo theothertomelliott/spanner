@@ -1,22 +1,23 @@
-package chatframework
+package slack
 
 import (
 	"fmt"
 
 	"github.com/slack-go/slack"
+	"github.com/theothertomelliott/chatframework"
 )
 
-var _ ReceivedMessage = &receivedMessageSlack{}
+var _ chatframework.ReceivedMessage = &receivedMessage{}
 
-type receivedMessageSlack struct {
-	eventMetadataSlack
-	*MessageSenderSlack `json:"ms"`
+type receivedMessage struct {
+	eventMetadata
+	*MessageSender `json:"ms"`
 
 	TextInternal string `json:"text"`
 }
 
-func (m *receivedMessageSlack) handleRequest(req requestSlack) error {
-	err := m.MessageSenderSlack.sendMessages(req)
+func (m *receivedMessage) handleRequest(req request) error {
+	err := m.MessageSender.sendMessages(req)
 	if err != nil {
 		return err
 	}
@@ -27,9 +28,9 @@ func (m *receivedMessageSlack) handleRequest(req requestSlack) error {
 	return nil
 }
 
-func (m *receivedMessageSlack) populateEvent(p eventPopulation) error {
-	if m.MessageSenderSlack != nil {
-		err := m.MessageSenderSlack.populateEvent(p)
+func (m *receivedMessage) populateEvent(p eventPopulation) error {
+	if m.MessageSender != nil {
+		err := m.MessageSender.populateEvent(p)
 		if err != nil {
 			return err
 		}
@@ -37,21 +38,21 @@ func (m *receivedMessageSlack) populateEvent(p eventPopulation) error {
 	return nil
 }
 
-var _ Message = &messageSlack{}
+var _ chatframework.Message = &message{}
 
-type messageSlack struct {
-	*BlocksSlack `json:"blocks"` // This ensures that the value is not nil
+type message struct {
+	*Blocks `json:"blocks"` // This ensures that the value is not nil
 
 	ChannelID    string `json:"channel_id"`
 	MessageIndex string `json:"message_index"`
 	unsent       bool
 }
 
-func (m *messageSlack) Channel(channelID string) {
+func (m *message) Channel(channelID string) {
 	m.ChannelID = channelID
 }
 
-func (m *messageSlack) handleRequest(req requestSlack) error {
+func (m *message) handleRequest(req request) error {
 	if m.unsent {
 		_, _, _, err := req.client.SendMessage(
 			m.ChannelID,
@@ -64,47 +65,51 @@ func (m *messageSlack) handleRequest(req requestSlack) error {
 				},
 			}))
 		if err != nil {
-			return fmt.Errorf("sending message: %w", err)
+			return fmt.Errorf("sending message: %w", renderSlackError(err))
 		}
 	}
 
 	return nil
 }
 
-func (m *messageSlack) populateEvent(p eventPopulation) error {
+func (m *message) populateEvent(p eventPopulation) error {
 	m.BlockStates = blockActionToState(p.interactionCallbackEvent.BlockActionState.Values)
 	return nil
 }
 
-type MessageSenderSlack struct {
-	readMessageIndex int             // track offset of messages so we don't create extra when processing actions
-	Messages         []*messageSlack `json:"messages"`
+type MessageSender struct {
+	readMessageIndex int        // track offset of messages so we don't create extra when processing actions
+	Messages         []*message `json:"messages"`
 
-	defaultChannelID string
+	DefaultChannelID string `json:"default_channel_id"`
 }
 
-func (m *receivedMessageSlack) Text() string {
+func (m *receivedMessage) Text() string {
 	return m.TextInternal
 }
 
-func (m *MessageSenderSlack) SendMessage() Message {
+func (m *MessageSender) SendMessage() chatframework.Message {
+	defer func() {
+		m.readMessageIndex++
+	}()
+
 	if m.readMessageIndex < len(m.Messages) {
 		return m.Messages[m.readMessageIndex]
 	}
-	message := &messageSlack{
-		BlocksSlack:  &BlocksSlack{},
+
+	message := &message{
+		Blocks:       &Blocks{},
 		MessageIndex: fmt.Sprintf("%v", len(m.Messages)),
-		ChannelID:    m.defaultChannelID,
+		ChannelID:    m.DefaultChannelID,
 		unsent:       true, // This means the message was created in this event loop
 
 	}
 	m.Messages = append(m.Messages, message)
-	m.readMessageIndex++
 
 	return message
 }
 
-func (m *MessageSenderSlack) sendMessages(req requestSlack) error {
+func (m *MessageSender) sendMessages(req request) error {
 	for _, message := range m.Messages {
 		err := message.handleRequest(req)
 		if err != nil {
@@ -114,7 +119,7 @@ func (m *MessageSenderSlack) sendMessages(req requestSlack) error {
 	return nil
 }
 
-func (m *MessageSenderSlack) populateEvent(p eventPopulation) error {
+func (m *MessageSender) populateEvent(p eventPopulation) error {
 	for _, message := range m.Messages {
 		if message.MessageIndex == p.messageIndex {
 			return message.populateEvent(p)

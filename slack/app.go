@@ -1,4 +1,4 @@
-package chatframework
+package slack
 
 import (
 	"encoding/json"
@@ -9,9 +9,10 @@ import (
 
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/socketmode"
+	"github.com/theothertomelliott/chatframework"
 )
 
-func NewSlackApp(botToken string, appToken string) (*slackApp, error) {
+func NewApp(botToken string, appToken string) (*app, error) {
 	if !strings.HasPrefix(botToken, "xoxb-") {
 		return nil, fmt.Errorf("bot token must be the token with prefix 'xoxb-'")
 	}
@@ -32,18 +33,18 @@ func NewSlackApp(botToken string, appToken string) (*slackApp, error) {
 		socketmode.OptionLog(log.New(os.Stdout, "socketmode: ", log.Lshortfile|log.LstdFlags)),
 	)
 
-	return &slackApp{
+	return &app{
 		api:    api,
 		client: client,
 	}, nil
 }
 
-type slackApp struct {
+type app struct {
 	api    *slack.Client
 	client *socketmode.Client
 }
 
-func (s *slackApp) Run(handler func(ev Event) error) error {
+func (s *app) Run(handler func(ev chatframework.Event) error) error {
 	go func() {
 		for evt := range s.client.Events {
 			es := parseSlackEvent(evt)
@@ -54,7 +55,7 @@ func (s *slackApp) Run(handler func(ev Event) error) error {
 			}
 			if evt.Request != nil {
 				if message := es.state.Message; message != nil {
-					err = message.handleRequest(requestSlack{
+					err = message.handleRequest(request{
 						req:    *evt.Request,
 						es:     es,
 						hash:   es.hash,
@@ -66,7 +67,7 @@ func (s *slackApp) Run(handler func(ev Event) error) error {
 				}
 
 				if slashCommand := es.state.SlashCommand; slashCommand != nil {
-					err = slashCommand.handleRequest(requestSlack{
+					err = slashCommand.handleRequest(request{
 						req:    *evt.Request,
 						es:     es,
 						hash:   es.hash,
@@ -85,14 +86,14 @@ func (s *slackApp) Run(handler func(ev Event) error) error {
 	return s.client.Run()
 }
 
-type requestSlack struct {
+type request struct {
 	req    socketmode.Request
-	es     *eventSlack
+	es     *event
 	hash   string
 	client *socketmode.Client
 }
 
-func (r requestSlack) Metadata() []byte {
+func (r request) Metadata() []byte {
 	metadata, err := json.Marshal(r.es.state)
 	if err != nil {
 		panic(err)

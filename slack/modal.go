@@ -1,20 +1,21 @@
-package chatframework
+package slack
 
 import (
 	"fmt"
 
 	"github.com/slack-go/slack"
+	"github.com/theothertomelliott/chatframework"
 )
 
-var _ Modal = &modalSlack{}
+var _ chatframework.Modal = &modal{}
 
-type modalSlack struct {
-	*BlocksSlack `json:"blocks"` // This ensures that the value is not nil
+type modal struct {
+	*Blocks `json:"blocks"` // This ensures that the value is not nil
 
-	Title      string                `json:"title"`
-	Submission *modalSubmissionSlack `json:"submission"`
-	HasParent  bool                  `json:"has_parent"`
-	ChannelID  string                `json:"channel_id"`
+	Title      string           `json:"title"`
+	Submission *modalSubmission `json:"submission"`
+	HasParent  bool             `json:"has_parent"`
+	ChannelID  string           `json:"channel_id"`
 
 	ViewID         string `json:"view_id"`
 	ViewExternalID string `json:"view_external_id"`
@@ -36,7 +37,7 @@ const (
 	closed
 )
 
-func (m *modalSlack) render() *slack.ModalViewRequest {
+func (m *modal) render() *slack.ModalViewRequest {
 	if m == nil {
 		return nil
 	}
@@ -61,7 +62,7 @@ func (m *modalSlack) render() *slack.ModalViewRequest {
 	return modal
 }
 
-func (m *modalSlack) Submit(text string) ModalSubmission {
+func (m *modal) Submit(text string) chatframework.ModalSubmission {
 	m.submitText = &text
 	// This should be redundant, but for some reason, returning m.Submission
 	// resulted in `m.Submit("txt") != nil` being false even if m.Submission
@@ -72,12 +73,12 @@ func (m *modalSlack) Submit(text string) ModalSubmission {
 	return m.Submission
 }
 
-func (m *modalSlack) Close(text string) bool {
+func (m *modal) Close(text string) bool {
 	m.closeText = &text
 	return m.update == closed
 }
 
-func (m *modalSlack) handleRequest(req requestSlack) error {
+func (m *modal) handleRequest(req request) error {
 	var err error
 
 	if m.Submission != nil {
@@ -96,7 +97,7 @@ func (m *modalSlack) handleRequest(req requestSlack) error {
 		if !m.HasParent {
 			_, err = req.client.OpenView(m.triggerID, *modal)
 			if err != nil {
-				return fmt.Errorf("opening view: %w", err)
+				return fmt.Errorf("opening view: %w", renderSlackError(err))
 			}
 		} else {
 			payload = slack.NewPushViewSubmissionResponse(modal)
@@ -109,11 +110,7 @@ func (m *modalSlack) handleRequest(req requestSlack) error {
 			m.ViewID,
 		)
 		if err != nil {
-			if slackErr, ok := err.(slack.SlackErrorResponse); ok {
-				return fmt.Errorf("updating view: %w %v %v", slackErr, slackErr.ResponseMetadata.Messages, slackErr.ResponseMetadata.Warnings)
-			} else {
-				return fmt.Errorf("updating view: %T %w", err, err)
-			}
+			return fmt.Errorf("updating view: %w", renderSlackError(err))
 		}
 	}
 
@@ -122,9 +119,9 @@ func (m *modalSlack) handleRequest(req requestSlack) error {
 	return nil
 }
 
-func (m *modalSlack) populateEvent(p eventPopulation) error {
-	if m.BlocksSlack == nil {
-		m.BlocksSlack = &BlocksSlack{}
+func (m *modal) populateEvent(p eventPopulation) error {
+	if m.Blocks == nil {
+		m.Blocks = &Blocks{}
 	}
 
 	if m.Submission != nil {
@@ -139,9 +136,9 @@ func (m *modalSlack) populateEvent(p eventPopulation) error {
 		m.update = action
 	}
 	if p.interaction == slack.InteractionTypeViewSubmission {
-		m.Submission = &modalSubmissionSlack{
-			MessageSenderSlack: &MessageSenderSlack{
-				defaultChannelID: m.ChannelID,
+		m.Submission = &modalSubmission{
+			MessageSender: &MessageSender{
+				DefaultChannelID: m.ChannelID,
 			},
 			parent: m,
 		}
@@ -154,32 +151,32 @@ func (m *modalSlack) populateEvent(p eventPopulation) error {
 	return nil
 }
 
-var _ ModalSubmission = &modalSubmissionSlack{}
+var _ chatframework.ModalSubmission = &modalSubmission{}
 
-type modalSubmissionSlack struct {
-	*MessageSenderSlack `json:"ms"`
+type modalSubmission struct {
+	*MessageSender `json:"ms"`
 
-	NextModal *modalSlack `json:"next_modal"`
+	NextModal *modal `json:"next_modal"`
 
-	parent *modalSlack
+	parent *modal
 }
 
-func (m *modalSubmissionSlack) Push(title string) Modal {
+func (m *modalSubmission) Push(title string) chatframework.Modal {
 	if m.NextModal != nil {
 		return m.NextModal
 	}
 
-	m.NextModal = &modalSlack{
-		BlocksSlack: &BlocksSlack{},
-		ChannelID:   m.parent.ChannelID,
-		Title:       title,
-		HasParent:   true,
+	m.NextModal = &modal{
+		Blocks:    &Blocks{},
+		ChannelID: m.parent.ChannelID,
+		Title:     title,
+		HasParent: true,
 	}
 	return m.NextModal
 }
 
-func (m *modalSubmissionSlack) handleRequest(req requestSlack) error {
-	err := m.MessageSenderSlack.sendMessages(req)
+func (m *modalSubmission) handleRequest(req request) error {
+	err := m.MessageSender.sendMessages(req)
 	if err != nil {
 		return err
 	}
@@ -195,8 +192,8 @@ func (m *modalSubmissionSlack) handleRequest(req requestSlack) error {
 	return nil
 }
 
-func (m *modalSubmissionSlack) populateEvent(p eventPopulation) error {
-	err := m.MessageSenderSlack.populateEvent(p)
+func (m *modalSubmission) populateEvent(p eventPopulation) error {
+	err := m.MessageSender.populateEvent(p)
 	if err != nil {
 		return err
 	}

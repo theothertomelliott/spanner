@@ -6,13 +6,14 @@ import (
 	"os"
 
 	"github.com/theothertomelliott/chatframework"
+	"github.com/theothertomelliott/chatframework/slack"
 )
 
 func main() {
 	botToken := os.Getenv("SLACK_BOT_TOKEN")
 	appToken := os.Getenv("SLACK_APP_TOKEN")
 
-	app, err := chatframework.NewSlackApp(botToken, appToken)
+	app, err := slack.NewApp(botToken, appToken)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -27,6 +28,7 @@ func handler(ev chatframework.Event) error {
 	if msg := ev.ReceiveMessage(); msg != nil {
 		fmt.Println("Received a message:", msg.Text())
 		if msg.Text() == "hello" {
+			fmt.Println("text =", msg.Text())
 			outMessage := msg.SendMessage()
 			outMessage.Text(fmt.Sprintf("Hello to you too: %v", msg.User()))
 			selectValue := outMessage.Select("Select", []string{"a", "b", "c"})
@@ -38,7 +40,9 @@ func handler(ev chatframework.Event) error {
 			out2 := msg.SendMessage()
 			out2.Text("Here's another message for good measure")
 
+			fmt.Println("Selects: ", selectValue, select2Value)
 			if select2Value != "" && selectValue != "" {
+				fmt.Println("Sending additional response")
 				result := msg.SendMessage()
 				result.Text(fmt.Sprintf("You selected %v and %v", selectValue, select2Value))
 			}

@@ -59,6 +59,19 @@ func blockActionToState(p eventPopulation) map[string]BlockState {
 	return out
 }
 
+func (b *Blocks) Header(message string) {
+	if b == nil {
+		return
+	}
+
+	b.blocks = append(b.blocks, slack.NewHeaderBlock(
+		&slack.TextBlockObject{
+			Type: slack.PlainTextType,
+			Text: message,
+		},
+	))
+}
+
 func (b *Blocks) Text(message string) {
 	if b == nil {
 		return

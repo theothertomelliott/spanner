@@ -2,6 +2,7 @@ package chatframework
 
 // BlockUI allows the creation of Slack blocks in a message or modal.
 type BlockUI interface {
+	Header(message string)
 	Text(message string)
 	TextInput(label string, hint string, placeholder string) string
 	MultilineTextInput(label string, hint string, placeholder string) string

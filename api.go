@@ -11,6 +11,10 @@ type App interface {
 // For example, ReceivedMessage will return a message that may have been received in this event.
 // Functions will return nil if the current event does not match the type of event.
 type Event interface {
+	Connected() bool
+
+	JoinChannel(channel string)
+
 	ReceiveMessage() ReceivedMessage
 	SlashCommand(command string) SlashCommand
 }

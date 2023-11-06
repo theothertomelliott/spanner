@@ -3,6 +3,8 @@ package slack
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
@@ -10,10 +12,14 @@ import (
 	"github.com/theothertomelliott/chatframework"
 )
 
+var _ chatframework.Event = &event{}
+
 type event struct {
 	hash string
 
 	state eventState
+
+	channelsToJoin []string
 }
 
 type eventMetadata struct {
@@ -31,12 +37,18 @@ func (e eventMetadata) Channel() string {
 
 type eventState struct {
 	Metadata     eventMetadata    `json:"metadata"`
+	Connected    bool             `json:"connected"`
 	SlashCommand *slashCommand    `json:"slash_command"`
 	Message      *receivedMessage `json:"message"`
 }
 
 func parseSlackEvent(ev socketmode.Event) *event {
 	out := &event{}
+
+	if ev.Type == socketmode.EventTypeConnected {
+		out.state.Connected = true
+		return out
+	}
 
 	if ev.Type == socketmode.EventTypeSlashCommand {
 		cmd, ok := ev.Data.(slack.SlashCommand)
@@ -126,8 +138,19 @@ func parseSlackEvent(ev socketmode.Event) *event {
 		} else {
 			fmt.Println("no metadata")
 		}
+
+		return out
 	}
+
 	return out
+}
+
+func (e *event) Connected() bool {
+	return e.state.Connected
+}
+
+func (e *event) JoinChannel(channel string) {
+	e.channelsToJoin = append(e.channelsToJoin, channel)
 }
 
 func (e *event) ReceiveMessage() chatframework.ReceivedMessage {
@@ -145,6 +168,111 @@ func (e *event) SlashCommand(command string) chatframework.SlashCommand {
 		return nil
 	}
 	return e.state.SlashCommand
+}
+
+func (e *event) finishEvent(req request) error {
+	for _, channel := range e.channelsToJoin {
+		err := e.doJoinChannel(channel, req)
+		if err != nil {
+			return err
+		}
+	}
+
+	if message := e.state.Message; message != nil {
+		return message.finishEvent(req)
+	}
+
+	if slashCommand := e.state.SlashCommand; slashCommand != nil {
+		return slashCommand.finishEvent(req)
+	}
+
+	// Handle the event if nothing else does
+	var payload interface{} = map[string]interface{}{}
+	req.client.Ack(req.req, payload)
+
+	return nil
+}
+
+var channelIDRegex = regexp.MustCompile("^[a-z0-9-]{1}[a-z0-9-]{0,20}$")
+
+func (e *event) doJoinChannel(channel string, req request) error {
+	if channelIDRegex.MatchString(channel) {
+		_, _, _, err := req.client.JoinConversation(channel)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Remove any hashes at the start of the channel name
+	channel = strings.TrimLeft(channel, "#")
+
+	authTest, err := req.client.AuthTest()
+	if err != nil {
+		return err
+	}
+
+	channels, err := getAllConversations(req.client, authTest.UserID)
+	if err != nil {
+		return err
+	}
+	for _, c := range channels {
+		if c.Name == channel || c.ID == channel {
+			// Already in this channel
+			fmt.Println("Already in the channel:", channel)
+			return nil
+		}
+		fmt.Println(c.Name)
+	}
+
+	allChannels, err := getAllConversations(req.client, "")
+	if err != nil {
+		return err
+	}
+
+	for _, c := range allChannels {
+		if c.Name == channel || c.ID == channel {
+			_, _, _, err = req.client.JoinConversation(c.ID)
+			if err != nil {
+				return err
+			}
+			fmt.Println("Joined the channel:", channel)
+			return nil
+		}
+	}
+
+	return nil
+}
+
+// TODO: Short circuit pagination as needed
+// TODO: Allow for caching of channel lists
+func getAllConversations(client *socketmode.Client, userID string) ([]slack.Channel, error) {
+	var (
+		nextCursor      string = "more"
+		cursor          string = ""
+		channels        []slack.Channel
+		currentChannels []slack.Channel
+		err             error
+	)
+	for nextCursor != "" {
+		if userID != "" {
+			currentChannels, nextCursor, err = client.GetConversationsForUser(&slack.GetConversationsForUserParameters{
+				UserID: userID,
+				Cursor: cursor,
+				Limit:  200,
+			})
+		} else {
+			currentChannels, nextCursor, err = client.GetConversations(&slack.GetConversationsParameters{
+				Cursor: cursor,
+				Limit:  200,
+			})
+		}
+		if err != nil {
+			return nil, err
+		}
+		cursor = nextCursor
+		channels = append(channels, currentChannels...)
+	}
+	return channels, nil
 }
 
 type eventPopulation struct {

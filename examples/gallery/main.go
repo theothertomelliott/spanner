@@ -19,6 +19,12 @@ func main() {
 	}
 
 	err = app.Run(func(ev chatframework.Event) error {
+		if ev.Connected() {
+			log.Println("Connected - will do some setup here")
+			ev.JoinChannel("#framework-bot-test")
+			ev.JoinChannel("#random")
+		}
+
 		if msg := ev.ReceiveMessage(); msg != nil && msg.Text() == "hello" {
 
 			reply := msg.SendMessage()

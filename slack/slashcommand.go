@@ -30,14 +30,14 @@ func (is *slashCommand) Modal(title string) chatframework.Modal {
 	return is.ModalInternal
 }
 
-func (is *slashCommand) handleRequest(req request) error {
+func (is *slashCommand) finishEvent(req request) error {
 	err := is.MessageSender.sendMessages(req)
 	if err != nil {
 		return err
 	}
 
 	if is.ModalInternal != nil {
-		return is.ModalInternal.handleRequest(req)
+		return is.ModalInternal.finishEvent(req)
 	}
 	return nil
 }

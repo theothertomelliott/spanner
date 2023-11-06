@@ -78,11 +78,11 @@ func (m *modal) Close(text string) bool {
 	return m.update == closed
 }
 
-func (m *modal) handleRequest(req request) error {
+func (m *modal) finishEvent(req request) error {
 	var err error
 
 	if m.Submission != nil {
-		return m.Submission.handleRequest(req)
+		return m.Submission.finishEvent(req)
 	}
 
 	modal := m.render()
@@ -175,14 +175,14 @@ func (m *modalSubmission) Push(title string) chatframework.Modal {
 	return m.NextModal
 }
 
-func (m *modalSubmission) handleRequest(req request) error {
+func (m *modalSubmission) finishEvent(req request) error {
 	err := m.MessageSender.sendMessages(req)
 	if err != nil {
 		return err
 	}
 
 	if m.NextModal != nil {
-		return m.NextModal.handleRequest(req)
+		return m.NextModal.finishEvent(req)
 	}
 
 	var payload interface{} = map[string]interface{}{}

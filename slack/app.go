@@ -62,33 +62,21 @@ func (s *app) Run(handler func(ev chatframework.Event) error) error {
 				log.Printf("handling event: %v", err)
 				continue // Move on without acknowledging, will force a repeat
 			}
-			if evt.Request != nil {
-				if message := es.state.Message; message != nil {
-					err = message.handleRequest(request{
-						req:    *evt.Request,
-						es:     es,
-						hash:   es.hash,
-						client: s.client,
-					})
-					if err != nil {
-						log.Printf("handling request: %v", err)
-					}
-				}
+			var req socketmode.Request
 
-				if slashCommand := es.state.SlashCommand; slashCommand != nil {
-					err = slashCommand.handleRequest(request{
-						req:    *evt.Request,
-						es:     es,
-						hash:   es.hash,
-						client: s.client,
-					})
-					if err != nil {
-						log.Printf("handling request: %v", err)
-					}
-				} else {
-					var payload interface{} = map[string]interface{}{}
-					s.client.Ack(*evt.Request, payload)
-				}
+			if evt.Request != nil {
+				req = *evt.Request
+			}
+
+			err = es.finishEvent(request{
+				req:    req,
+				es:     es,
+				hash:   es.hash,
+				client: s.client,
+			})
+			if err != nil {
+				log.Printf("handling request: %v", renderSlackError(err))
+				continue // Move on without acknowledging, will force a repeat
 			}
 		}
 	}()
@@ -96,9 +84,10 @@ func (s *app) Run(handler func(ev chatframework.Event) error) error {
 }
 
 type request struct {
-	req    socketmode.Request
-	es     *event
-	hash   string
+	req  socketmode.Request
+	es   *event
+	hash string
+
 	client *socketmode.Client
 }
 

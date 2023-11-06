@@ -16,7 +16,7 @@ type receivedMessage struct {
 	TextInternal string `json:"text"`
 }
 
-func (m *receivedMessage) handleRequest(req request) error {
+func (m *receivedMessage) finishEvent(req request) error {
 	err := m.MessageSender.sendMessages(req)
 	if err != nil {
 		return err
@@ -52,7 +52,7 @@ func (m *message) Channel(channelID string) {
 	m.ChannelID = channelID
 }
 
-func (m *message) handleRequest(req request) error {
+func (m *message) finishEvent(req request) error {
 	if m.unsent {
 		_, _, _, err := req.client.SendMessage(
 			m.ChannelID,
@@ -111,7 +111,7 @@ func (m *MessageSender) SendMessage() chatframework.Message {
 
 func (m *MessageSender) sendMessages(req request) error {
 	for _, message := range m.Messages {
-		err := message.handleRequest(req)
+		err := message.finishEvent(req)
 		if err != nil {
 			return err
 		}

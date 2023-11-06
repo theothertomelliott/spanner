@@ -22,7 +22,9 @@ func main() {
 		if msg := ev.ReceiveMessage(); msg != nil && msg.Text() == "hello" {
 
 			reply := msg.SendMessage()
-			reply.Text("Here are examples of supported block UI elements")
+			reply.PlainText("Here are examples of supported block UI elements")
+
+			reply.Markdown("This is a *markdown* message")
 
 			reply.Divider()
 
@@ -35,15 +37,15 @@ func main() {
 
 			reply.Header("Select inputs")
 
-			letter := reply.Select("Pick a letter", chatframework.SelectOptions("a", "b", "c"))
-			numbers := reply.MultipleSelect("Pick some numbers", chatframework.SelectOptions("0", "1", "2", "3", "4", "5", "6", "7", "8", "9"))
+			letter := reply.Select("Pick a letter", chatframework.Options("a", "b", "c"))
+			numbers := reply.MultipleSelect("Pick some numbers", chatframework.Options("0", "1", "2", "3", "4", "5", "6", "7", "8", "9"))
 
 			if reply.Button("Done") {
 				summary := msg.SendMessage()
-				summary.Text(fmt.Sprintf("Single line: %q", singleLine))
-				summary.Text(fmt.Sprintf("Multi line: %q", multiLine))
-				summary.Text(fmt.Sprintf("You chose %q", letter))
-				summary.Text(fmt.Sprintf("Numbers: %v", numbers))
+				summary.PlainText(fmt.Sprintf("Single line: %q", singleLine))
+				summary.PlainText(fmt.Sprintf("Multi line: %q", multiLine))
+				summary.PlainText(fmt.Sprintf("You chose %q", letter))
+				summary.PlainText(fmt.Sprintf("Numbers: %v", numbers))
 			}
 		}
 		return nil

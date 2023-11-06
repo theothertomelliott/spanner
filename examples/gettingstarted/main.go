@@ -22,11 +22,11 @@ func main() {
 		if msg := ev.ReceiveMessage(); msg != nil && msg.Text() == "hello" {
 
 			reply := msg.SendMessage()
-			reply.Text(fmt.Sprintf("Hello to you too: %v", msg.User()))
+			reply.PlainText(fmt.Sprintf("Hello to you too: %v", msg.User()))
 
-			letter := reply.Select("Pick a letter", chatframework.SelectOptions("a", "b", "c"))
+			letter := reply.Select("Pick a letter", chatframework.Options("a", "b", "c"))
 			if letter != "" {
-				msg.SendMessage().Text(fmt.Sprintf("You chose %q", letter))
+				msg.SendMessage().PlainText(fmt.Sprintf("You chose %q", letter))
 			}
 		}
 		return nil

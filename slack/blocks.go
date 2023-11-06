@@ -72,7 +72,22 @@ func (b *Blocks) Header(message string) {
 	))
 }
 
-func (b *Blocks) Text(message string) {
+func (b *Blocks) PlainText(text string) {
+	if b == nil {
+		return
+	}
+
+	b.blocks = append(b.blocks, slack.NewSectionBlock(
+		&slack.TextBlockObject{
+			Type: slack.PlainTextType,
+			Text: text,
+		},
+		nil,
+		nil,
+	))
+}
+
+func (b *Blocks) Markdown(text string) {
 	if b == nil {
 		return
 	}
@@ -80,7 +95,7 @@ func (b *Blocks) Text(message string) {
 	b.blocks = append(b.blocks, slack.NewSectionBlock(
 		&slack.TextBlockObject{
 			Type: slack.MarkdownType,
-			Text: message,
+			Text: text,
 		},
 		nil,
 		nil,
@@ -152,7 +167,7 @@ func (b *Blocks) addTextInput(label, hint, placeholder string, multiline bool) (
 	return inputBlockID, inputActionID
 }
 
-func (b *Blocks) Select(title string, options []chatframework.SelectOption) string {
+func (b *Blocks) Select(title string, options []chatframework.Option) string {
 	inputBlockID := b.addSelect(title, options)
 
 	// Retrieve the selected option from the state
@@ -166,7 +181,7 @@ func (b *Blocks) Select(title string, options []chatframework.SelectOption) stri
 	return ""
 }
 
-func (b *Blocks) addSelect(text string, options []chatframework.SelectOption) (inputBlockID string) {
+func (b *Blocks) addSelect(text string, options []chatframework.Option) (inputBlockID string) {
 	defer func() {
 		b.inputID++
 	}()
@@ -216,7 +231,7 @@ func (b *Blocks) addSelect(text string, options []chatframework.SelectOption) (i
 	return inputBlockID
 }
 
-func (b *Blocks) MultipleSelect(title string, options []chatframework.SelectOption) []string {
+func (b *Blocks) MultipleSelect(title string, options []chatframework.Option) []string {
 	inputBlockID := b.addMultipleSelect(title, options)
 
 	// Retrieve the selected option from the state
@@ -230,7 +245,7 @@ func (b *Blocks) MultipleSelect(title string, options []chatframework.SelectOpti
 	return nil
 }
 
-func (b *Blocks) addMultipleSelect(text string, options []chatframework.SelectOption) (inputBlockID string) {
+func (b *Blocks) addMultipleSelect(text string, options []chatframework.Option) (inputBlockID string) {
 	defer func() {
 		b.inputID++
 	}()

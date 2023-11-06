@@ -25,12 +25,22 @@ func main() {
 			reply.Text(fmt.Sprintf("Hello to you too: %v", msg.User()))
 
 			letter := reply.Select("Pick a letter", chatframework.SelectOptions("a", "b", "c"))
-			if letter != "" {
-				fmt.Println("Letter:", letter)
-			}
+
+			reply.Divider()
+
+			singleLine := reply.TextInput("Single line", "Enter a single line", "Placeholder")
+			multiLine := reply.MultilineTextInput("Multi line", "Enter a multi line", "Placeholder")
+
+			reply.Divider()
+
+			numbers := reply.MultipleSelect("Pick some numbers", chatframework.SelectOptions("0", "1", "2", "3", "4", "5", "6", "7", "8", "9"))
 
 			if reply.Button("Done") {
-				msg.SendMessage().Text(fmt.Sprintf("You chose %q", letter))
+				summary := msg.SendMessage()
+				summary.Text(fmt.Sprintf("You chose %q", letter))
+				summary.Text(fmt.Sprintf("Single line: %q", singleLine))
+				summary.Text(fmt.Sprintf("Multi line: %q", multiLine))
+				summary.Text(fmt.Sprintf("Numbers: %v", numbers))
 			}
 		}
 		return nil

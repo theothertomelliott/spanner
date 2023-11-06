@@ -7,6 +7,7 @@ type BlockUI interface {
 	MultilineTextInput(label string, hint string, placeholder string) string
 	Divider()
 	Select(title string, options []SelectOption) string
+	MultipleSelect(title string, options []SelectOption) []string
 	Button(label string) bool
 }
 

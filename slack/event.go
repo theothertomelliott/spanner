@@ -256,14 +256,16 @@ func getAllConversations(client *socketmode.Client, userID string) ([]slack.Chan
 	for nextCursor != "" {
 		if userID != "" {
 			currentChannels, nextCursor, err = client.GetConversationsForUser(&slack.GetConversationsForUserParameters{
-				UserID: userID,
-				Cursor: cursor,
-				Limit:  200,
+				UserID:          userID,
+				Cursor:          cursor,
+				Limit:           200,
+				ExcludeArchived: true,
 			})
 		} else {
 			currentChannels, nextCursor, err = client.GetConversations(&slack.GetConversationsParameters{
-				Cursor: cursor,
-				Limit:  200,
+				Cursor:          cursor,
+				Limit:           200,
+				ExcludeArchived: true,
 			})
 		}
 		if err != nil {

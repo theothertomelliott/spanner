@@ -50,6 +50,8 @@ func main() {
 
 			if reply.Button("Done") {
 				summary := msg.SendMessage()
+				summary.PlainText("Here's a summary of what you entered")
+				summary.PlainText(fmt.Sprintf("Original poster: %v", msg.User().RealName()))
 				summary.PlainText(fmt.Sprintf("Single line: %q", singleLine))
 				summary.PlainText(fmt.Sprintf("Multi line: %q", multiLine))
 				summary.PlainText(fmt.Sprintf("You chose %q", letter))

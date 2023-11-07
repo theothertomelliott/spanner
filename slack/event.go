@@ -58,7 +58,7 @@ func parseSlackEvent(client *socketmode.Client, ev socketmode.Event) *event {
 
 		out.state.Metadata.ChannelInfo = &channel{
 			client:       client,
-			loaded:       true,
+			Loaded:       true,
 			IDInternal:   cmd.ChannelID,
 			NameInternal: cmd.ChannelName,
 		}

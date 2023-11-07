@@ -14,7 +14,7 @@ type channel struct {
 	IDInternal   string `json:"id"`
 	NameInternal string `json:"name"`
 
-	loaded bool
+	Loaded bool `json:"loaded"`
 }
 
 func (c *channel) ID() string {
@@ -27,7 +27,7 @@ func (c *channel) Name() string {
 }
 
 func (c *channel) load() {
-	if c.loaded {
+	if c.Loaded {
 		return
 	}
 
@@ -37,6 +37,6 @@ func (c *channel) load() {
 	if err != nil {
 		panic(err)
 	}
-	c.loaded = true
+	c.Loaded = true
 	c.NameInternal = ch.Name
 }

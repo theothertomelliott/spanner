@@ -6,7 +6,7 @@ import (
 
 type user struct {
 	client *socketmode.Client
-	loaded bool
+	Loaded bool `json:"loaded"`
 
 	IDInternal       string `json:"id"`
 	NameInternal     string `json:"display_name"`
@@ -34,7 +34,7 @@ func (u *user) Email() string {
 }
 
 func (u *user) load() {
-	if u.loaded {
+	if u.Loaded {
 		return
 	}
 
@@ -47,5 +47,5 @@ func (u *user) load() {
 	u.NameInternal = user.Name
 	u.RealNameInternal = user.RealName
 	u.EmailInternal = user.Profile.Email
-	u.loaded = true
+	u.Loaded = true
 }

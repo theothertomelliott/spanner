@@ -23,16 +23,16 @@ type event struct {
 }
 
 type eventMetadata struct {
-	ChannelInternal string `json:"channel"`
-	UserInternal    string `json:"user"`
+	ChannelInfo *channel `json:"channel_info"`
+	UserInfo    *user    `json:"user_info"`
 }
 
-func (e eventMetadata) User() string {
-	return e.UserInternal
+func (e eventMetadata) User() chatframework.User {
+	return e.UserInfo
 }
 
-func (e eventMetadata) Channel() string {
-	return e.ChannelInternal
+func (e eventMetadata) Channel() chatframework.Channel {
+	return e.ChannelInfo
 }
 
 type eventState struct {
@@ -42,7 +42,7 @@ type eventState struct {
 	Message      *receivedMessage `json:"message"`
 }
 
-func parseSlackEvent(ev socketmode.Event) *event {
+func parseSlackEvent(client *socketmode.Client, ev socketmode.Event) *event {
 	out := &event{}
 
 	if ev.Type == socketmode.EventTypeConnected {
@@ -56,13 +56,21 @@ func parseSlackEvent(ev socketmode.Event) *event {
 			return out
 		}
 
-		out.state.Metadata.ChannelInternal = cmd.ChannelID
-		out.state.Metadata.UserInternal = cmd.UserID
+		out.state.Metadata.ChannelInfo = &channel{
+			client:       client,
+			loaded:       true,
+			IDInternal:   cmd.ChannelID,
+			NameInternal: cmd.ChannelName,
+		}
+		out.state.Metadata.UserInfo = &user{
+			client:     client,
+			IDInternal: cmd.UserID,
+		}
 
 		out.state.SlashCommand = &slashCommand{
 			eventMetadata: out.state.Metadata,
 			MessageSender: &MessageSender{
-				DefaultChannelID: out.state.Metadata.ChannelInternal,
+				DefaultChannelID: cmd.ChannelID,
 			},
 
 			TriggerID: cmd.TriggerID,
@@ -80,14 +88,21 @@ func parseSlackEvent(ev socketmode.Event) *event {
 			innerEvent := eventsAPIEvent.InnerEvent
 			switch ev := innerEvent.Data.(type) {
 			case *slackevents.MessageEvent:
-				out.state.Metadata.ChannelInternal = ev.Channel
-				out.state.Metadata.UserInternal = ev.User
+				out.state.Metadata.ChannelInfo = &channel{
+					client:     client,
+					IDInternal: ev.Channel,
+				}
+				out.state.Metadata.UserInfo = &user{
+					client:       client,
+					IDInternal:   ev.User,
+					NameInternal: ev.Username,
+				}
 
 				out.state.Message = &receivedMessage{
 					eventMetadata: out.state.Metadata,
 					TextInternal:  ev.Text,
 					MessageSender: &MessageSender{
-						DefaultChannelID: out.state.Metadata.ChannelInternal,
+						DefaultChannelID: ev.Channel,
 					},
 				}
 			}
@@ -135,6 +150,14 @@ func parseSlackEvent(ev socketmode.Event) *event {
 				)
 			}
 
+		}
+
+		// Set clients in metadata
+		if out.state.Metadata.ChannelInfo != nil {
+			out.state.Metadata.ChannelInfo.client = client
+		}
+		if out.state.Metadata.UserInfo != nil {
+			out.state.Metadata.UserInfo.client = client
 		}
 
 		return out

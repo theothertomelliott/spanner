@@ -56,7 +56,7 @@ type app struct {
 func (s *app) Run(handler func(ev chatframework.Event) error) error {
 	go func() {
 		for evt := range s.client.Events {
-			es := parseSlackEvent(evt)
+			es := parseSlackEvent(s.client, evt)
 			err := handler(es)
 			if err != nil {
 				log.Printf("handling event: %v", err)

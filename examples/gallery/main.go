@@ -28,6 +28,8 @@ func main() {
 		if msg := ev.ReceiveMessage(); msg != nil && msg.Text() == "hello" {
 
 			reply := msg.SendMessage()
+			reply.Markdown(fmt.Sprintf("Hello, *%v*", msg.User().RealName()))
+
 			reply.PlainText("Here are examples of supported block UI elements")
 
 			reply.Markdown("This is a *markdown* message")

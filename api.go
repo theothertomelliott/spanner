@@ -21,8 +21,8 @@ type Event interface {
 
 // Metadata provides information common to all events.
 type Metadata interface {
-	User() string
-	Channel() string
+	User() User
+	Channel() Channel
 }
 
 // MessageSender is an interface that can be used to send Slack messages.

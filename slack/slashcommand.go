@@ -23,7 +23,7 @@ func (is *slashCommand) Modal(title string) chatframework.Modal {
 	}
 	is.ModalInternal = &modal{
 		Blocks:    &Blocks{},
-		ChannelID: is.ChannelInternal,
+		ChannelID: is.ChannelInfo.IDInternal,
 		Title:     title,
 		triggerID: is.TriggerID,
 	}

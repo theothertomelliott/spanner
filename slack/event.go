@@ -135,8 +135,6 @@ func parseSlackEvent(ev socketmode.Event) *event {
 				)
 			}
 
-		} else {
-			fmt.Println("no metadata")
 		}
 
 		return out
@@ -221,7 +219,6 @@ func (e *event) doJoinChannel(channel string, req request) error {
 			fmt.Println("Already in the channel:", channel)
 			return nil
 		}
-		fmt.Println(c.Name)
 	}
 
 	allChannels, err := getAllConversations(req.client, "")

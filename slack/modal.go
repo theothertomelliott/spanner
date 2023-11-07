@@ -87,8 +87,6 @@ func (m *modal) finishEvent(req request) error {
 
 	modal := m.render()
 	modal.PrivateMetadata = string(req.Metadata())
-	fmt.Println("Metadata:", string(modal.PrivateMetadata))
-	fmt.Println("Metadata length:", len(modal.PrivateMetadata))
 
 	var payload interface{} = map[string]interface{}{}
 

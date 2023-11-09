@@ -1,6 +1,6 @@
-# chat-framework
+# Spanner for Slack
 
-A Go framework for building interactive Slack applications.
+Spanner is a Go framework for building interactive Slack applications.
 
 The framework adopts a model inspired by [Streamlit](https://streamlit.io/) with a single event handling loop to construct your UI and to respond to user input - so you can iterate faster and focus on your business logic!
 
@@ -15,14 +15,14 @@ for creating a Socket mode app at: https://api.slack.com/apis/connections/socket
 
 Import the framework into your project with `go get``:
 
-    go get github.com/theothertomelliott/chatframework
+    go get github.com/theothertomelliott/spanner
 
 Then import the API and Slack application package into your app:
 
 ```
 import (
-  "github.com/theothertomelliott/chatframework"
-  "github.com/theothertomelliott/chatframework/slack"
+  "github.com/theothertomelliott/spanner"
+  "github.com/theothertomelliott/spanner/slack"
 )
 ```
 
@@ -54,7 +54,7 @@ sends an event to your app. In the example above, our app will ignore every even
 with messages coming in.
 
 ```
-err = app.Run(func(ev chatframework.Event) error {
+err = app.Run(func(ev spanner.Event) error {
     if msg := ev.ReceiveMessage(); msg != nil && msg.Text() == "hello" {
         reply := msg.SendMessage()
         reply.Text(fmt.Sprintf("Hello to you too: %v", msg.User()))
@@ -72,13 +72,13 @@ You can also easily add UI elements to your messages. Let's add a dropdown to ou
 with the option the user chooses.
 
 ```
-err = app.Run(func(ev chatframework.Event) error {
+err = app.Run(func(ev spanner.Event) error {
     if msg := ev.ReceiveMessage(); msg != nil && msg.Text() == "hello" {
 
         reply := msg.SendMessage()
         reply.Text(fmt.Sprintf("Hello to you too: %v", msg.User()))
 
-		letter := reply.Select("Pick a letter", chatframework.SelectOptions("a", "b", "c"))
+		letter := reply.Select("Pick a letter", spanner.SelectOptions("a", "b", "c"))
         if letter != "" {
             msg.SendMessage().Text(fmt.Sprintf("You chose %q", letter))
         }

@@ -1,6 +1,6 @@
 package slack
 
-import "github.com/theothertomelliott/chatframework"
+import "github.com/theothertomelliott/spanner"
 
 type slashCommand struct {
 	eventMetadata

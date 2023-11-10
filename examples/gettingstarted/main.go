@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/theothertomelliott/chatframework"
-	"github.com/theothertomelliott/chatframework/slack"
+	"github.com/theothertomelliott/spanner"
+	"github.com/theothertomelliott/spanner/slack"
 )
 
 func main() {

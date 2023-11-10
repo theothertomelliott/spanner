@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/theothertomelliott/chatframework"
-	"github.com/theothertomelliott/chatframework/slack"
+	chatframework "github.com/theothertomelliott/spanner"
+	"github.com/theothertomelliott/spanner/slack"
 )
 
 func main() {
@@ -18,6 +18,7 @@ func main() {
 		log.Fatal(err)
 	}
 
+	fmt.Println("Starting app")
 	err = app.Run(func(ev chatframework.Event) error {
 		if ev.Connected() {
 			log.Println("Connected - will do some setup here")

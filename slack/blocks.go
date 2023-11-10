@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/slack-go/slack"
-	"github.com/theothertomelliott/chatframework"
+	"github.com/theothertomelliott/spanner"
 )
 
 var _ chatframework.BlockUI = &Blocks{}

@@ -1,4 +1,4 @@
-module github.com/theothertomelliott/chatframework
+module github.com/theothertomelliott/spanner
 
 go 1.21.2
 

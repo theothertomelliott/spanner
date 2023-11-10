@@ -3,7 +3,7 @@ package slack
 import (
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/socketmode"
-	"github.com/theothertomelliott/chatframework"
+	"github.com/theothertomelliott/spanner"
 )
 
 var _ chatframework.Channel = &channel{}

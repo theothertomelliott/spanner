@@ -25,16 +25,11 @@ func main() {
 	err = app.Run(func(ev spanner.Event) error {
 		if custom := ev.Custom(); custom != nil {
 			log.Printf("Custom body: %+v", custom.Body())
-		}
-		if msg := ev.ReceiveMessage(); msg != nil && msg.Text() == "hello" {
 
-			reply := msg.SendMessage(msg.Channel().ID())
-			reply.PlainText(fmt.Sprintf("Hello to you too: %v", msg.User()))
-
-			letter := reply.Select("Pick a letter", spanner.Options("a", "b", "c"))
-			if letter != "" {
-				msg.SendMessage(msg.Channel().ID()).PlainText(fmt.Sprintf("You chose %q", letter))
-			}
+			msg := ev.SendMessage("C062778EYRZ")
+			msg.Markdown(fmt.Sprintf("You sent %+v", custom.Body()))
+			input := msg.TextInput("Say something!", "a", "b")
+			fmt.Println(input)
 		}
 		return nil
 	})

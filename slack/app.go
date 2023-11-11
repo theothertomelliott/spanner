@@ -46,7 +46,7 @@ func NewApp(botToken string, appToken string) (spanner.App, error) {
 		api:           api,
 		client:        client,
 		combinedEvent: make(chan combinedEvent, 2),
-		custom:        make(chan spanner.CustomEvent, 2),
+		custom:        make(chan *customEvent, 2),
 	}, nil
 }
 
@@ -55,12 +55,12 @@ type app struct {
 	client *socketmode.Client
 
 	combinedEvent chan combinedEvent
-	custom        chan spanner.CustomEvent
+	custom        chan *customEvent
 }
 
 type combinedEvent struct {
 	ev          *socketmode.Event
-	customEvent spanner.CustomEvent
+	customEvent *customEvent
 }
 
 func (s *app) Run(handler func(ev spanner.Event) error) error {
@@ -108,7 +108,9 @@ func (s *app) Run(handler func(ev spanner.Event) error) error {
 }
 
 func (s *app) SendCustom(c spanner.CustomEvent) error {
-	s.custom <- c
+	s.custom <- &customEvent{
+		body: c.Body(),
+	}
 	return nil
 }
 

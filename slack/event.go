@@ -36,143 +36,13 @@ func (e eventMetadata) Channel() spanner.Channel {
 }
 
 type eventState struct {
-	Metadata     eventMetadata       `json:"metadata"`
-	Connected    bool                `json:"connected"`
-	SlashCommand *slashCommand       `json:"slash_command"`
-	Message      *receivedMessage    `json:"message"`
-	Custom       spanner.CustomEvent `json:"customEvent"`
-}
+	*MessageSender `json:"ms"`
 
-func parseCombinedEvent(client *socketmode.Client, ce combinedEvent) *event {
-	out := &event{}
-
-	if ce.customEvent != nil {
-		out.state.Custom = ce.customEvent
-		return out
-	}
-
-	var ev socketmode.Event
-	if ce.ev != nil {
-		ev = *ce.ev
-	} else {
-		return out
-	}
-
-	if ev.Type == socketmode.EventTypeConnected {
-		out.state.Connected = true
-		return out
-	}
-
-	if ev.Type == socketmode.EventTypeSlashCommand {
-		cmd, ok := ev.Data.(slack.SlashCommand)
-		if !ok {
-			return out
-		}
-
-		out.state.Metadata.ChannelInfo = &channel{
-			client:       client,
-			Loaded:       true,
-			IDInternal:   cmd.ChannelID,
-			NameInternal: cmd.ChannelName,
-		}
-		out.state.Metadata.UserInfo = &user{
-			client:     client,
-			IDInternal: cmd.UserID,
-		}
-
-		out.state.SlashCommand = &slashCommand{
-			eventMetadata: out.state.Metadata,
-			MessageSender: &MessageSender{},
-
-			TriggerID: cmd.TriggerID,
-			Command:   cmd.Command,
-		}
-		return out
-	}
-
-	if ev.Type == socketmode.EventTypeEventsAPI {
-		eventsAPIEvent, ok := ev.Data.(slackevents.EventsAPIEvent)
-		if !ok {
-			return out
-		}
-		if eventsAPIEvent.Type == slackevents.CallbackEvent {
-			innerEvent := eventsAPIEvent.InnerEvent
-			switch ev := innerEvent.Data.(type) {
-			case *slackevents.MessageEvent:
-				out.state.Metadata.ChannelInfo = &channel{
-					client:     client,
-					IDInternal: ev.Channel,
-				}
-				out.state.Metadata.UserInfo = &user{
-					client:       client,
-					IDInternal:   ev.User,
-					NameInternal: ev.Username,
-				}
-
-				out.state.Message = &receivedMessage{
-					eventMetadata: out.state.Metadata,
-					TextInternal:  ev.Text,
-					MessageSender: &MessageSender{},
-				}
-			}
-			return out
-		}
-		return out
-	}
-
-	if ev.Type == socketmode.EventTypeInteractive {
-		interactionCallbackEvent, ok := ev.Data.(slack.InteractionCallback)
-		if !ok {
-			return out
-		}
-
-		out.hash = interactionCallbackEvent.Hash
-
-		if metadata := interactionCallbackEvent.View.PrivateMetadata; metadata != "" {
-			err := json.Unmarshal([]byte(metadata), &out.state)
-			if err != nil {
-				panic(err)
-			}
-			if out.state.SlashCommand != nil {
-				out.state.SlashCommand.populateEvent(
-					eventPopulation{
-						interactionCallbackEvent: interactionCallbackEvent,
-						interaction:              interactionCallbackEvent.Type,
-						messageIndex:             "",
-					},
-				)
-			}
-
-		} else if eventMeta := interactionCallbackEvent.Message.Metadata; eventMeta.EventType == "bot_message" {
-			messageIndex := eventMeta.EventPayload["message_index"].(string)
-			err := json.Unmarshal([]byte(eventMeta.EventPayload["metadata"].(string)), &out.state)
-			if err != nil {
-				panic(err)
-			}
-			if out.state.Message != nil {
-				out.state.Message.populateEvent(
-					eventPopulation{
-						interactionCallbackEvent: interactionCallbackEvent,
-						interaction:              interactionCallbackEvent.Type,
-						messageIndex:             messageIndex,
-					},
-				)
-			}
-
-		}
-
-		// Set clients in metadata
-		if out.state.Metadata.ChannelInfo != nil {
-			out.state.Metadata.ChannelInfo.client = client
-		}
-		if out.state.Metadata.UserInfo != nil {
-			out.state.Metadata.UserInfo.client = client
-		}
-
-		return out
-	}
-
-	return out
+	Metadata     eventMetadata    `json:"metadata"`
+	Connected    bool             `json:"connected"`
+	SlashCommand *slashCommand    `json:"slash_command"`
+	Message      *receivedMessage `json:"message"`
+	Custom       *customEvent     `json:"customEvent"`
 }
 
 func (e *event) Connected() bool {
@@ -207,12 +77,21 @@ func (e *event) SlashCommand(command string) spanner.SlashCommand {
 	return e.state.SlashCommand
 }
 
+func (e *event) SendMessage(channelID string) spanner.Message {
+	return e.state.SendMessage(channelID)
+}
+
 func (e *event) finishEvent(req request) error {
 	for _, channel := range e.channelsToJoin {
 		err := e.doJoinChannel(channel, req)
 		if err != nil {
 			return err
 		}
+	}
+
+	err := e.state.sendMessages(req)
+	if err != nil {
+		return err
 	}
 
 	if message := e.state.Message; message != nil {
@@ -317,4 +196,149 @@ type eventPopulation struct {
 	interactionCallbackEvent slack.InteractionCallback
 	interaction              slack.InteractionType
 	messageIndex             string
+}
+
+func parseCombinedEvent(client *socketmode.Client, ce combinedEvent) *event {
+	out := &event{
+		state: eventState{
+			MessageSender: &MessageSender{},
+		},
+	}
+
+	if ce.customEvent != nil {
+		out.state.Custom = ce.customEvent
+		return out
+	}
+
+	var ev socketmode.Event
+	if ce.ev != nil {
+		ev = *ce.ev
+	} else {
+		return out
+	}
+
+	if ev.Type == socketmode.EventTypeConnected {
+		out.state.Connected = true
+		return out
+	}
+
+	if ev.Type == socketmode.EventTypeSlashCommand {
+		cmd, ok := ev.Data.(slack.SlashCommand)
+		if !ok {
+			return out
+		}
+
+		out.state.Metadata.ChannelInfo = &channel{
+			client:       client,
+			Loaded:       true,
+			IDInternal:   cmd.ChannelID,
+			NameInternal: cmd.ChannelName,
+		}
+		out.state.Metadata.UserInfo = &user{
+			client:     client,
+			IDInternal: cmd.UserID,
+		}
+
+		out.state.SlashCommand = &slashCommand{
+			eventMetadata: out.state.Metadata,
+			MessageSender: &MessageSender{},
+
+			TriggerID: cmd.TriggerID,
+			Command:   cmd.Command,
+		}
+		return out
+	}
+
+	if ev.Type == socketmode.EventTypeEventsAPI {
+		eventsAPIEvent, ok := ev.Data.(slackevents.EventsAPIEvent)
+		if !ok {
+			return out
+		}
+		if eventsAPIEvent.Type == slackevents.CallbackEvent {
+			innerEvent := eventsAPIEvent.InnerEvent
+			switch ev := innerEvent.Data.(type) {
+			case *slackevents.MessageEvent:
+				out.state.Metadata.ChannelInfo = &channel{
+					client:     client,
+					IDInternal: ev.Channel,
+				}
+				out.state.Metadata.UserInfo = &user{
+					client:       client,
+					IDInternal:   ev.User,
+					NameInternal: ev.Username,
+				}
+
+				out.state.Message = &receivedMessage{
+					eventMetadata: out.state.Metadata,
+					TextInternal:  ev.Text,
+					MessageSender: &MessageSender{},
+				}
+			}
+			return out
+		}
+		return out
+	}
+
+	if ev.Type == socketmode.EventTypeInteractive {
+		interactionCallbackEvent, ok := ev.Data.(slack.InteractionCallback)
+		if !ok {
+			return out
+		}
+
+		out.hash = interactionCallbackEvent.Hash
+
+		if metadata := interactionCallbackEvent.View.PrivateMetadata; metadata != "" {
+			err := json.Unmarshal([]byte(metadata), &out.state)
+			if err != nil {
+				panic(err)
+			}
+			if out.state.SlashCommand != nil {
+				out.state.SlashCommand.populateEvent(
+					eventPopulation{
+						interactionCallbackEvent: interactionCallbackEvent,
+						interaction:              interactionCallbackEvent.Type,
+						messageIndex:             "",
+					},
+				)
+			}
+
+		} else if eventMeta := interactionCallbackEvent.Message.Metadata; eventMeta.EventType == "bot_message" {
+			messageIndex := eventMeta.EventPayload["message_index"].(string)
+			err := json.Unmarshal([]byte(eventMeta.EventPayload["metadata"].(string)), &out.state)
+			if err != nil {
+				panic(err)
+			}
+			p := eventPopulation{
+				interactionCallbackEvent: interactionCallbackEvent,
+				interaction:              interactionCallbackEvent.Type,
+				messageIndex:             messageIndex,
+			}
+
+			if out.state.MessageSender != nil {
+				err := out.state.MessageSender.populateEvent(p)
+				if err != nil {
+					panic(err)
+				}
+			}
+			if out.state.Message != nil {
+				err := out.state.Message.populateEvent(p)
+				if err != nil {
+					panic(err)
+				}
+			}
+
+		}
+
+		// Set clients in metadata
+		if out.state.Metadata.ChannelInfo != nil {
+			out.state.Metadata.ChannelInfo.client = client
+		}
+		if out.state.Metadata.UserInfo != nil {
+			out.state.Metadata.UserInfo.client = client
+		}
+
+		return out
+	}
+
+	return out
 }

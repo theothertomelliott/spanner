@@ -75,12 +75,12 @@ with the option the user chooses.
 err = app.Run(func(ev spanner.Event) error {
     if msg := ev.ReceiveMessage(); msg != nil && msg.Text() == "hello" {
 
-        reply := msg.SendMessage()
+        reply := ev.SendMessage()
         reply.Text(fmt.Sprintf("Hello to you too: %v", msg.User()))
 
 		letter := reply.Select("Pick a letter", spanner.SelectOptions("a", "b", "c"))
         if letter != "" {
-            msg.SendMessage().Text(fmt.Sprintf("You chose %q", letter))
+            ev.SendMessage().Text(fmt.Sprintf("You chose %q", letter))
         }
     }
     return nil

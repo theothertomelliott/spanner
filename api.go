@@ -12,27 +12,19 @@ type App interface {
 // For example, ReceivedMessage will return a message that may have been received in this event.
 // Functions will return nil if the current event does not match the type of event.
 type Event interface {
-	MessageSender
-
 	Connected() bool
-
 	Custom() CustomEvent
-
-	JoinChannel(channel string)
-
 	ReceiveMessage() ReceivedMessage
 	SlashCommand(command string) SlashCommand
+
+	JoinChannel(channel string)
+	SendMessage(channelID string) Message
 }
 
 // Metadata provides information common to all events.
 type Metadata interface {
 	User() User
 	Channel() Channel
-}
-
-// MessageSender is an interface that can be used to send Slack messages.
-type MessageSender interface {
-	SendMessage(channelID string) Message
 }
 
 // ModalCreator is an interface that can be used to create Slack modal views.
@@ -44,8 +36,6 @@ type ModalCreator interface {
 // Messages and modal views may be created in response to the command.
 type SlashCommand interface {
 	Metadata
-
-	MessageSender
 	ModalCreator
 }
 
@@ -60,14 +50,12 @@ type Modal interface {
 // ModalSubmission handles a modal being submitted.
 // It can be used to send a response message or push a new modal onto the stack.
 type ModalSubmission interface {
-	MessageSender
 	Push(title string) Modal
 }
 
 // ReceivedMessage represents a message received from Slack.
 type ReceivedMessage interface {
 	Metadata
-	MessageSender
 	Text() string
 }
 

@@ -241,10 +241,8 @@ func parseCombinedEvent(client *socketmode.Client, ce combinedEvent) *event {
 
 		out.state.SlashCommand = &slashCommand{
 			eventMetadata: out.state.Metadata,
-			MessageSender: &MessageSender{},
-
-			TriggerID: cmd.TriggerID,
-			Command:   cmd.Command,
+			TriggerID:     cmd.TriggerID,
+			Command:       cmd.Command,
 		}
 		return out
 	}
@@ -271,7 +269,6 @@ func parseCombinedEvent(client *socketmode.Client, ce combinedEvent) *event {
 				out.state.Message = &receivedMessage{
 					eventMetadata: out.state.Metadata,
 					TextInternal:  ev.Text,
-					MessageSender: &MessageSender{},
 				}
 			}
 			return out

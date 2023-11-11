@@ -6,14 +6,11 @@ var _ spanner.CustomEvent = &customEvent{}
 
 func NewCustomEvent(body map[string]interface{}) spanner.CustomEvent {
 	return &customEvent{
-		MessageSender: &MessageSender{},
-		body:          body,
+		body: body,
 	}
 }
 
 type customEvent struct {
-	*MessageSender `json:"ms"`
-
 	body map[string]interface{}
 }
 

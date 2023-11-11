@@ -135,8 +135,7 @@ func (m *modal) populateEvent(p eventPopulation) error {
 	}
 	if p.interaction == slack.InteractionTypeViewSubmission {
 		m.Submission = &modalSubmission{
-			MessageSender: &MessageSender{},
-			parent:        m,
+			parent: m,
 		}
 		m.update = submitted
 	}
@@ -150,8 +149,6 @@ func (m *modal) populateEvent(p eventPopulation) error {
 var _ spanner.ModalSubmission = &modalSubmission{}
 
 type modalSubmission struct {
-	*MessageSender `json:"ms"`
-
 	NextModal *modal `json:"next_modal"`
 
 	parent *modal
@@ -172,11 +169,6 @@ func (m *modalSubmission) Push(title string) spanner.Modal {
 }
 
 func (m *modalSubmission) finishEvent(req request) error {
-	err := m.MessageSender.sendMessages(req)
-	if err != nil {
-		return err
-	}
-
 	if m.NextModal != nil {
 		return m.NextModal.finishEvent(req)
 	}
@@ -189,11 +181,6 @@ func (m *modalSubmission) finishEvent(req request) error {
 }
 
 func (m *modalSubmission) populateEvent(p eventPopulation) error {
-	err := m.MessageSender.populateEvent(p)
-	if err != nil {
-		return err
-	}
-
 	if m.NextModal != nil {
 		return m.NextModal.populateEvent(p)
 	}

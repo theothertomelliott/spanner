@@ -11,16 +11,12 @@ var _ spanner.ReceivedMessage = &receivedMessage{}
 
 type receivedMessage struct {
 	eventMetadata
-	*MessageSender `json:"ms"`
 
 	TextInternal string `json:"text"`
 }
 
 func (m *receivedMessage) finishEvent(req request) error {
-	err := m.MessageSender.sendMessages(req)
-	if err != nil {
-		return err
-	}
+	// Placeholder for actions specific to received messages
 
 	var payload interface{} = map[string]interface{}{}
 	req.client.Ack(req.req, payload)
@@ -29,12 +25,7 @@ func (m *receivedMessage) finishEvent(req request) error {
 }
 
 func (m *receivedMessage) populateEvent(p eventPopulation) error {
-	if m.MessageSender != nil {
-		err := m.MessageSender.populateEvent(p)
-		if err != nil {
-			return err
-		}
-	}
+	// Placeholder for actions specific to received messages
 	return nil
 }
 

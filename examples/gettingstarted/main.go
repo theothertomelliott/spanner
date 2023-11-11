@@ -21,12 +21,12 @@ func main() {
 	err = app.Run(func(ev spanner.Event) error {
 		if msg := ev.ReceiveMessage(); msg != nil && msg.Text() == "hello" {
 
-			reply := msg.SendMessage(msg.Channel().ID())
+			reply := ev.SendMessage(msg.Channel().ID())
 			reply.PlainText(fmt.Sprintf("Hello to you too: %v", msg.User()))
 
 			letter := reply.Select("Pick a letter", spanner.Options("a", "b", "c"))
 			if letter != "" {
-				msg.SendMessage(msg.Channel().ID()).PlainText(fmt.Sprintf("You chose %q", letter))
+				ev.SendMessage(msg.Channel().ID()).PlainText(fmt.Sprintf("You chose %q", letter))
 			}
 		}
 		return nil

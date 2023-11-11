@@ -5,8 +5,6 @@ import "github.com/theothertomelliott/spanner"
 type slashCommand struct {
 	eventMetadata
 
-	*MessageSender `json:"ms"`
-
 	TriggerID     string `json:"trigger_id"`
 	Command       string `json:"command"`
 	ModalInternal *modal `json:"modal"`
@@ -31,11 +29,6 @@ func (is *slashCommand) Modal(title string) spanner.Modal {
 }
 
 func (is *slashCommand) finishEvent(req request) error {
-	err := is.MessageSender.sendMessages(req)
-	if err != nil {
-		return err
-	}
-
 	if is.ModalInternal != nil {
 		return is.ModalInternal.finishEvent(req)
 	}
@@ -43,11 +36,6 @@ func (is *slashCommand) finishEvent(req request) error {
 }
 
 func (is *slashCommand) populateEvent(p eventPopulation) error {
-	err := is.MessageSender.populateEvent(p)
-	if err != nil {
-		return err
-	}
-
 	if is.ModalInternal != nil {
 		return is.ModalInternal.populateEvent(p)
 	}

@@ -28,7 +28,7 @@ func main() {
 
 		if msg := ev.ReceiveMessage(); msg != nil && msg.Text() == "hello" {
 
-			reply := msg.SendMessage(msg.Channel().ID())
+			reply := ev.SendMessage(msg.Channel().ID())
 			reply.Markdown(fmt.Sprintf("Hello, *%v*", msg.User().RealName()))
 
 			reply.PlainText("Here are examples of supported block UI elements")
@@ -50,7 +50,7 @@ func main() {
 			numbers := reply.MultipleSelect("Pick some numbers", spanner.Options("0", "1", "2", "3", "4", "5", "6", "7", "8", "9"))
 
 			if reply.Button("Done") {
-				summary := msg.SendMessage(msg.Channel().ID())
+				summary := ev.SendMessage(msg.Channel().ID())
 				summary.PlainText("Here's a summary of what you entered")
 				summary.PlainText(fmt.Sprintf("Original poster: %v", msg.User().RealName()))
 				summary.PlainText(fmt.Sprintf("Single line: %q", singleLine))

@@ -1,4 +1,4 @@
-package chatframework
+package spanner
 
 type Channel interface {
 	ID() string

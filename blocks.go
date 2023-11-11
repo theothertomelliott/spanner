@@ -1,4 +1,4 @@
-package chatframework
+package spanner
 
 // BlockUI allows the creation of Slack blocks in a message or modal.
 type BlockUI interface {

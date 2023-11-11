@@ -1,9 +1,10 @@
-package chatframework
+package spanner
 
 // App is the top level for a chat application.
 // Call Run with an event handling function to start the application.
 type App interface {
 	Run(func(ev Event) error) error
+	SendCustom(CustomEvent) error
 }
 
 // Event represents an event received from the Slack platform.
@@ -12,6 +13,8 @@ type App interface {
 // Functions will return nil if the current event does not match the type of event.
 type Event interface {
 	Connected() bool
+
+	Custom() CustomEvent
 
 	JoinChannel(channel string)
 
@@ -27,7 +30,7 @@ type Metadata interface {
 
 // MessageSender is an interface that can be used to send Slack messages.
 type MessageSender interface {
-	SendMessage() Message
+	SendMessage(channelID string) Message
 }
 
 // ModalCreator is an interface that can be used to create Slack modal views.

@@ -1,4 +1,4 @@
-package chatframework
+package spanner
 
 type User interface {
 	ID() string

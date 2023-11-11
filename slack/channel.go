@@ -6,7 +6,7 @@ import (
 	"github.com/theothertomelliott/spanner"
 )
 
-var _ chatframework.Channel = &channel{}
+var _ spanner.Channel = &channel{}
 
 type channel struct {
 	client *socketmode.Client

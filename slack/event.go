@@ -12,7 +12,7 @@ import (
 	"github.com/theothertomelliott/spanner"
 )
 
-var _ chatframework.Event = &event{}
+var _ spanner.Event = &event{}
 
 type event struct {
 	hash string
@@ -27,23 +27,36 @@ type eventMetadata struct {
 	UserInfo    *user    `json:"user_info"`
 }
 
-func (e eventMetadata) User() chatframework.User {
+func (e eventMetadata) User() spanner.User {
 	return e.UserInfo
 }
 
-func (e eventMetadata) Channel() chatframework.Channel {
+func (e eventMetadata) Channel() spanner.Channel {
 	return e.ChannelInfo
 }
 
 type eventState struct {
-	Metadata     eventMetadata    `json:"metadata"`
-	Connected    bool             `json:"connected"`
-	SlashCommand *slashCommand    `json:"slash_command"`
-	Message      *receivedMessage `json:"message"`
+	Metadata     eventMetadata       `json:"metadata"`
+	Connected    bool                `json:"connected"`
+	SlashCommand *slashCommand       `json:"slash_command"`
+	Message      *receivedMessage    `json:"message"`
+	Custom       spanner.CustomEvent `json:"customEvent"`
 }
 
-func parseSlackEvent(client *socketmode.Client, ev socketmode.Event) *event {
+func parseCombinedEvent(client *socketmode.Client, ce combinedEvent) *event {
 	out := &event{}
+
+	if ce.customEvent != nil {
+		out.state.Custom = ce.customEvent
+		return out
+	}
+
+	var ev socketmode.Event
+	if ce.ev != nil {
+		ev = *ce.ev
+	} else {
+		return out
+	}
 
 	if ev.Type == socketmode.EventTypeConnected {
 		out.state.Connected = true
@@ -69,9 +82,7 @@ func parseSlackEvent(client *socketmode.Client, ev socketmode.Event) *event {
 
 		out.state.SlashCommand = &slashCommand{
 			eventMetadata: out.state.Metadata,
-			MessageSender: &MessageSender{
-				DefaultChannelID: cmd.ChannelID,
-			},
+			MessageSender: &MessageSender{},
 
 			TriggerID: cmd.TriggerID,
 			Command:   cmd.Command,
@@ -101,9 +112,7 @@ func parseSlackEvent(client *socketmode.Client, ev socketmode.Event) *event {
 				out.state.Message = &receivedMessage{
 					eventMetadata: out.state.Metadata,
 					TextInternal:  ev.Text,
-					MessageSender: &MessageSender{
-						DefaultChannelID: ev.Channel,
-					},
+					MessageSender: &MessageSender{},
 				}
 			}
 			return out
@@ -174,14 +183,21 @@ func (e *event) JoinChannel(channel string) {
 	e.channelsToJoin = append(e.channelsToJoin, channel)
 }
 
-func (e *event) ReceiveMessage() chatframework.ReceivedMessage {
+func (e *event) Custom() spanner.CustomEvent {
+	if e.state.Custom != nil {
+		return e.state.Custom
+	}
+	return nil
+}
+
+func (e *event) ReceiveMessage() spanner.ReceivedMessage {
 	if e.state.Message != nil {
 		return e.state.Message
 	}
 	return nil
 }
 
-func (e *event) SlashCommand(command string) chatframework.SlashCommand {
+func (e *event) SlashCommand(command string) spanner.SlashCommand {
 	if e.state.SlashCommand == nil {
 		return nil
 	}

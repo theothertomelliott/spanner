@@ -21,7 +21,7 @@ import (
 // https://api.slack.com/apis/connections/socket
 //
 // As at November 2023, this means that these apps cannot be distributed in the public Slack app directory.
-func NewApp(botToken string, appToken string) (*app, error) {
+func NewApp(botToken string, appToken string) (spanner.App, error) {
 	if !strings.HasPrefix(botToken, "xoxb-") {
 		return nil, fmt.Errorf("bot token must be the token with prefix 'xoxb-'")
 	}
@@ -43,20 +43,44 @@ func NewApp(botToken string, appToken string) (*app, error) {
 	)
 
 	return &app{
-		api:    api,
-		client: client,
+		api:           api,
+		client:        client,
+		combinedEvent: make(chan combinedEvent, 2),
+		custom:        make(chan spanner.CustomEvent, 2),
 	}, nil
 }
 
 type app struct {
 	api    *slack.Client
 	client *socketmode.Client
+
+	combinedEvent chan combinedEvent
+	custom        chan spanner.CustomEvent
 }
 
-func (s *app) Run(handler func(ev chatframework.Event) error) error {
+type combinedEvent struct {
+	ev          *socketmode.Event
+	customEvent spanner.CustomEvent
+}
+
+func (s *app) Run(handler func(ev spanner.Event) error) error {
+	go func() {
+		for ce := range s.custom {
+			s.combinedEvent <- combinedEvent{
+				customEvent: ce,
+			}
+		}
+	}()
 	go func() {
 		for evt := range s.client.Events {
-			es := parseSlackEvent(s.client, evt)
+			s.combinedEvent <- combinedEvent{
+				ev: &evt,
+			}
+		}
+	}()
+	go func() {
+		for ce := range s.combinedEvent {
+			es := parseCombinedEvent(s.client, ce)
 			err := handler(es)
 			if err != nil {
 				log.Printf("handling event: %v", err)
@@ -64,7 +88,7 @@ func (s *app) Run(handler func(ev chatframework.Event) error) error {
 			}
 			var req socketmode.Request
 
-			if evt.Request != nil {
+			if evt := ce.ev; evt != nil && evt.Request != nil {
 				req = *evt.Request
 			}
 
@@ -81,6 +105,11 @@ func (s *app) Run(handler func(ev chatframework.Event) error) error {
 		}
 	}()
 	return s.client.Run()
+}
+
+func (s *app) SendCustom(c spanner.CustomEvent) error {
+	s.custom <- c
+	return nil
 }
 
 type request struct {

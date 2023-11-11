@@ -7,7 +7,7 @@ import (
 	"github.com/theothertomelliott/spanner"
 )
 
-var _ chatframework.ReceivedMessage = &receivedMessage{}
+var _ spanner.ReceivedMessage = &receivedMessage{}
 
 type receivedMessage struct {
 	eventMetadata
@@ -38,7 +38,7 @@ func (m *receivedMessage) populateEvent(p eventPopulation) error {
 	return nil
 }
 
-var _ chatframework.Message = &message{}
+var _ spanner.Message = &message{}
 
 type message struct {
 	*Blocks `json:"blocks"` // This ensures that the value is not nil
@@ -80,15 +80,13 @@ func (m *message) populateEvent(p eventPopulation) error {
 type MessageSender struct {
 	readMessageIndex int        // track offset of messages so we don't create extra when processing actions
 	Messages         []*message `json:"messages"`
-
-	DefaultChannelID string `json:"default_channel_id"`
 }
 
 func (m *receivedMessage) Text() string {
 	return m.TextInternal
 }
 
-func (m *MessageSender) SendMessage() chatframework.Message {
+func (m *MessageSender) SendMessage(channelID string) spanner.Message {
 	defer func() {
 		m.readMessageIndex++
 	}()
@@ -100,7 +98,7 @@ func (m *MessageSender) SendMessage() chatframework.Message {
 	message := &message{
 		Blocks:       &Blocks{},
 		MessageIndex: fmt.Sprintf("%v", len(m.Messages)),
-		ChannelID:    m.DefaultChannelID,
+		ChannelID:    channelID,
 		unsent:       true, // This means the message was created in this event loop
 
 	}

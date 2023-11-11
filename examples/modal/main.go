@@ -25,7 +25,7 @@ func main() {
 	}
 }
 
-func handler(ev chatframework.Event) error {
+func handler(ev spanner.Event) error {
 	if testSlash := ev.SlashCommand("/testslash"); testSlash != nil {
 		fmt.Printf("Handling /testslash from user %v in channel %v\n", testSlash.User(), testSlash.Channel())
 		modal := testSlash.Modal("My Modal")
@@ -40,19 +40,19 @@ func handler(ev chatframework.Event) error {
 		for i := 0; i < 10; i++ {
 			tensOptions = append(tensOptions, fmt.Sprint(i))
 		}
-		tensOutput := modal.Select("Tens", chatframework.Options(tensOptions...))
+		tensOutput := modal.Select("Tens", spanner.Options(tensOptions...))
 		fmt.Println("Tens:", tensOutput)
 
 		finalNumber := ""
 		if tensOutput != "" {
 
-			unitsOptions := []chatframework.Option{}
+			unitsOptions := []spanner.Option{}
 			for i := 0; i < 10; i++ {
 				tensPrefix := tensOutput
 				if tensPrefix == "0" {
 					tensPrefix = ""
 				}
-				unit := chatframework.Option{
+				unit := spanner.Option{
 					Label:       fmt.Sprint(i),
 					Value:       fmt.Sprintf("%v%v", tensPrefix, i),
 					Description: fmt.Sprintf("returns %v%v", tensPrefix, i),
@@ -71,7 +71,7 @@ func handler(ev chatframework.Event) error {
 				modal2 := submit.Push("Step 2")
 				modal2.PlainText("Hello")
 
-				dropdown := modal2.Select("Dropdown", chatframework.Options("a", "b", "c"))
+				dropdown := modal2.Select("Dropdown", spanner.Options("a", "b", "c"))
 				fmt.Println("Dropdown:", dropdown)
 
 				singleLine := modal2.TextInput("Single line", "Hint", "Placeholder")
@@ -81,7 +81,7 @@ func handler(ev chatframework.Event) error {
 				fmt.Println("Multi line:", multiLine)
 
 				if submit := modal2.Submit("Submit"); submit != nil {
-					msg := submit.SendMessage()
+					msg := submit.SendMessage(testSlash.Channel().ID())
 					msg.PlainText("Thank you for completing our modal view.")
 					msg.PlainText(fmt.Sprintf("Your number was %v", finalNumber))
 					msg.PlainText(fmt.Sprintf("You entered %v, %q and %q in the second view", dropdown, singleLine, multiLine))

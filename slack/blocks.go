@@ -9,7 +9,7 @@ import (
 	"github.com/theothertomelliott/spanner"
 )
 
-var _ chatframework.BlockUI = &Blocks{}
+var _ spanner.BlockUI = &Blocks{}
 
 type Blocks struct {
 	blocks      []slack.Block
@@ -167,7 +167,7 @@ func (b *Blocks) addTextInput(label, hint, placeholder string, multiline bool) (
 	return inputBlockID, inputActionID
 }
 
-func (b *Blocks) Select(title string, options []chatframework.Option) string {
+func (b *Blocks) Select(title string, options []spanner.Option) string {
 	inputBlockID := b.addSelect(title, options)
 
 	// Retrieve the selected option from the state
@@ -181,7 +181,7 @@ func (b *Blocks) Select(title string, options []chatframework.Option) string {
 	return ""
 }
 
-func (b *Blocks) addSelect(text string, options []chatframework.Option) (inputBlockID string) {
+func (b *Blocks) addSelect(text string, options []spanner.Option) (inputBlockID string) {
 	defer func() {
 		b.inputID++
 	}()
@@ -231,7 +231,7 @@ func (b *Blocks) addSelect(text string, options []chatframework.Option) (inputBl
 	return inputBlockID
 }
 
-func (b *Blocks) MultipleSelect(title string, options []chatframework.Option) []string {
+func (b *Blocks) MultipleSelect(title string, options []spanner.Option) []string {
 	inputBlockID := b.addMultipleSelect(title, options)
 
 	// Retrieve the selected option from the state
@@ -245,7 +245,7 @@ func (b *Blocks) MultipleSelect(title string, options []chatframework.Option) []
 	return nil
 }
 
-func (b *Blocks) addMultipleSelect(text string, options []chatframework.Option) (inputBlockID string) {
+func (b *Blocks) addMultipleSelect(text string, options []spanner.Option) (inputBlockID string) {
 	defer func() {
 		b.inputID++
 	}()

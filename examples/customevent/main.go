@@ -18,7 +18,14 @@ func main() {
 		log.Fatal(err)
 	}
 
+	_ = app.SendCustom(slack.NewCustomEvent(map[string]interface{}{
+		"field1": "value1",
+	}))
+
 	err = app.Run(func(ev spanner.Event) error {
+		if custom := ev.Custom(); custom != nil {
+			log.Printf("Custom body: %+v", custom.Body())
+		}
 		if msg := ev.ReceiveMessage(); msg != nil && msg.Text() == "hello" {
 
 			reply := msg.SendMessage(msg.Channel().ID())

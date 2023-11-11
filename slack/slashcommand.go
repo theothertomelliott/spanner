@@ -12,9 +12,9 @@ type slashCommand struct {
 	ModalInternal *modal `json:"modal"`
 }
 
-var _ chatframework.SlashCommand = &slashCommand{}
+var _ spanner.SlashCommand = &slashCommand{}
 
-func (is *slashCommand) Modal(title string) chatframework.Modal {
+func (is *slashCommand) Modal(title string) spanner.Modal {
 	if is == nil {
 		return nil
 	}

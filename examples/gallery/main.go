@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	chatframework "github.com/theothertomelliott/spanner"
+	spanner "github.com/theothertomelliott/spanner"
 	"github.com/theothertomelliott/spanner/slack"
 )
 
@@ -19,7 +19,7 @@ func main() {
 	}
 
 	fmt.Println("Starting app")
-	err = app.Run(func(ev chatframework.Event) error {
+	err = app.Run(func(ev spanner.Event) error {
 		if ev.Connected() {
 			log.Println("Connected - will do some setup here")
 			ev.JoinChannel("#framework-bot-test")
@@ -28,7 +28,7 @@ func main() {
 
 		if msg := ev.ReceiveMessage(); msg != nil && msg.Text() == "hello" {
 
-			reply := msg.SendMessage()
+			reply := msg.SendMessage(msg.Channel().ID())
 			reply.Markdown(fmt.Sprintf("Hello, *%v*", msg.User().RealName()))
 
 			reply.PlainText("Here are examples of supported block UI elements")
@@ -46,11 +46,11 @@ func main() {
 
 			reply.Header("Select inputs")
 
-			letter := reply.Select("Pick a letter", chatframework.Options("a", "b", "c"))
-			numbers := reply.MultipleSelect("Pick some numbers", chatframework.Options("0", "1", "2", "3", "4", "5", "6", "7", "8", "9"))
+			letter := reply.Select("Pick a letter", spanner.Options("a", "b", "c"))
+			numbers := reply.MultipleSelect("Pick some numbers", spanner.Options("0", "1", "2", "3", "4", "5", "6", "7", "8", "9"))
 
 			if reply.Button("Done") {
-				summary := msg.SendMessage()
+				summary := msg.SendMessage(msg.Channel().ID())
 				summary.PlainText("Here's a summary of what you entered")
 				summary.PlainText(fmt.Sprintf("Original poster: %v", msg.User().RealName()))
 				summary.PlainText(fmt.Sprintf("Single line: %q", singleLine))

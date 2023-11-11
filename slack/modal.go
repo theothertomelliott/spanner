@@ -7,7 +7,7 @@ import (
 	"github.com/theothertomelliott/spanner"
 )
 
-var _ chatframework.Modal = &modal{}
+var _ spanner.Modal = &modal{}
 
 type modal struct {
 	*Blocks `json:"blocks"` // This ensures that the value is not nil
@@ -62,7 +62,7 @@ func (m *modal) render() *slack.ModalViewRequest {
 	return modal
 }
 
-func (m *modal) Submit(text string) chatframework.ModalSubmission {
+func (m *modal) Submit(text string) spanner.ModalSubmission {
 	m.submitText = &text
 	// This should be redundant, but for some reason, returning m.Submission
 	// resulted in `m.Submit("txt") != nil` being false even if m.Submission
@@ -135,10 +135,8 @@ func (m *modal) populateEvent(p eventPopulation) error {
 	}
 	if p.interaction == slack.InteractionTypeViewSubmission {
 		m.Submission = &modalSubmission{
-			MessageSender: &MessageSender{
-				DefaultChannelID: m.ChannelID,
-			},
-			parent: m,
+			MessageSender: &MessageSender{},
+			parent:        m,
 		}
 		m.update = submitted
 	}
@@ -149,7 +147,7 @@ func (m *modal) populateEvent(p eventPopulation) error {
 	return nil
 }
 
-var _ chatframework.ModalSubmission = &modalSubmission{}
+var _ spanner.ModalSubmission = &modalSubmission{}
 
 type modalSubmission struct {
 	*MessageSender `json:"ms"`
@@ -159,7 +157,7 @@ type modalSubmission struct {
 	parent *modal
 }
 
-func (m *modalSubmission) Push(title string) chatframework.Modal {
+func (m *modalSubmission) Push(title string) spanner.Modal {
 	if m.NextModal != nil {
 		return m.NextModal
 	}

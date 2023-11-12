@@ -24,8 +24,10 @@ type BlockState struct {
 }
 
 func blockActionToState(p eventPopulation) map[string]BlockState {
-	in := p.interactionCallbackEvent.BlockActionState.Values
-	out := make(map[string]BlockState)
+	var (
+		in  map[string]map[string]slack.BlockAction
+		out = make(map[string]BlockState)
+	)
 
 	for _, action := range p.interactionCallbackEvent.ActionCallback.BlockActions {
 		if action.Type == "button" {
@@ -35,6 +37,12 @@ func blockActionToState(p eventPopulation) map[string]BlockState {
 		}
 	}
 
+	if p.interactionCallbackEvent.BlockActionState != nil {
+		in = p.interactionCallbackEvent.BlockActionState.Values
+	}
+	if p.interactionCallbackEvent.View.State != nil {
+		in = p.interactionCallbackEvent.View.State.Values
+	}
 	for blockID, block := range in {
 		state := BlockState{}
 		if len(block) != 1 {

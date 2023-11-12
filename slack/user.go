@@ -1,6 +1,8 @@
 package slack
 
 import (
+	"fmt"
+
 	"github.com/slack-go/slack/socketmode"
 )
 
@@ -37,6 +39,8 @@ func (u *user) load() {
 	if u.Loaded {
 		return
 	}
+
+	fmt.Printf("%+v\n", u)
 
 	user, err := u.client.GetUserInfo(u.IDInternal)
 	if err != nil {

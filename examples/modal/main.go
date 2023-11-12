@@ -82,7 +82,7 @@ func handler(ev spanner.Event) error {
 
 				if submit := modal2.Submit("Submit"); submit != nil {
 					msg := ev.SendMessage(testSlash.Channel().ID())
-					msg.PlainText("Thank you for completing our modal view.")
+					msg.Markdown(fmt.Sprintf("Thank you for completing our modal view <@%v>", testSlash.User().Name()))
 					msg.PlainText(fmt.Sprintf("Your number was %v", finalNumber))
 					msg.PlainText(fmt.Sprintf("You entered %v, %q and %q in the second view", dropdown, singleLine, multiLine))
 				}

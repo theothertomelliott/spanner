@@ -205,6 +205,34 @@ func parseCombinedEvent(client *socketmode.Client, ce combinedEvent) *event {
 		},
 	}
 
+	defer func() {
+		// Set clients in metadata
+		if out.state.Metadata.ChannelInfo != nil {
+			out.state.Metadata.ChannelInfo.client = client
+		}
+		if out.state.Metadata.UserInfo != nil {
+			out.state.Metadata.UserInfo.client = client
+		}
+
+		// TODO: There's probably a better way to do this
+		if out.state.SlashCommand != nil {
+			if out.state.SlashCommand.eventMetadata.ChannelInfo != nil {
+				out.state.SlashCommand.eventMetadata.ChannelInfo.client = client
+			}
+			if out.state.SlashCommand.eventMetadata.UserInfo != nil {
+				out.state.SlashCommand.eventMetadata.UserInfo.client = client
+			}
+		}
+		if out.state.Message != nil {
+			if out.state.Message.eventMetadata.ChannelInfo != nil {
+				out.state.Message.eventMetadata.ChannelInfo.client = client
+			}
+			if out.state.Message.eventMetadata.UserInfo != nil {
+				out.state.Message.eventMetadata.UserInfo.client = client
+			}
+		}
+	}()
+
 	if ce.customEvent != nil {
 		out.state.Custom = ce.customEvent
 		return out
@@ -324,14 +352,6 @@ func parseCombinedEvent(client *socketmode.Client, ce combinedEvent) *event {
 				}
 			}
 
-		}
-
-		// Set clients in metadata
-		if out.state.Metadata.ChannelInfo != nil {
-			out.state.Metadata.ChannelInfo.client = client
-		}
-		if out.state.Metadata.UserInfo != nil {
-			out.state.Metadata.UserInfo.client = client
 		}
 
 		return out

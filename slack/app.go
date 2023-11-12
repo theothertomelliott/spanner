@@ -12,6 +12,12 @@ import (
 	"github.com/theothertomelliott/spanner"
 )
 
+type AppConfig struct {
+	BotToken string
+	AppToken string
+	Debug    bool
+}
+
 // NewApp creates a new slack app.
 //
 // botToken is the token for the bot user, with prefix 'xoxb-'
@@ -21,24 +27,24 @@ import (
 // https://api.slack.com/apis/connections/socket
 //
 // As at November 2023, this means that these apps cannot be distributed in the public Slack app directory.
-func NewApp(botToken string, appToken string) (spanner.App, error) {
-	if !strings.HasPrefix(botToken, "xoxb-") {
+func NewApp(config AppConfig) (spanner.App, error) {
+	if !strings.HasPrefix(config.BotToken, "xoxb-") {
 		return nil, fmt.Errorf("bot token must be the token with prefix 'xoxb-'")
 	}
-	if !strings.HasPrefix(appToken, "xapp-") {
+	if !strings.HasPrefix(config.AppToken, "xapp-") {
 		return nil, fmt.Errorf("app token must be the token with prefix 'xapp-'")
 	}
 
 	api := slack.New(
-		botToken,
-		slack.OptionDebug(false),
+		config.BotToken,
+		slack.OptionDebug(config.Debug),
 		slack.OptionLog(log.New(os.Stdout, "api: ", log.Lshortfile|log.LstdFlags)),
-		slack.OptionAppLevelToken(appToken),
+		slack.OptionAppLevelToken(config.AppToken),
 	)
 
 	client := socketmode.New(
 		api,
-		socketmode.OptionDebug(false),
+		socketmode.OptionDebug(config.Debug),
 		socketmode.OptionLog(log.New(os.Stdout, "socketmode: ", log.Lshortfile|log.LstdFlags)),
 	)
 

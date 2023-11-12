@@ -13,7 +13,13 @@ func main() {
 	botToken := os.Getenv("SLACK_BOT_TOKEN")
 	appToken := os.Getenv("SLACK_APP_TOKEN")
 
-	app, err := slack.NewApp(botToken, appToken)
+	app, err := slack.NewApp(
+		slack.AppConfig{
+			BotToken: botToken,
+			AppToken: appToken,
+			Debug:    true,
+		},
+	)
 	if err != nil {
 		log.Fatal(err)
 	}

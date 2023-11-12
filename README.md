@@ -31,7 +31,12 @@ import (
 Now you can define an application and run it:
 
 ```
-app, err := slack.NewApp(botToken, appToken)
+app, err := slack.NewApp(
+    slack.AppConfig{
+        BotToken: botToken,
+        AppToken: appToken,
+    },
+)
 if err != nil {
     log.Fatal(err)
 }
@@ -78,7 +83,7 @@ err = app.Run(func(ev spanner.Event) error {
         reply := ev.SendMessage()
         reply.Text(fmt.Sprintf("Hello to you too: %v", msg.User()))
 
-		letter := reply.Select("Pick a letter", spanner.SelectOptions("a", "b", "c"))
+        letter := reply.Select("Pick a letter", spanner.SelectOptions("a", "b", "c"))
         if letter != "" {
             ev.SendMessage().Text(fmt.Sprintf("You chose %q", letter))
         }

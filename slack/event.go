@@ -2,9 +2,6 @@ package slack
 
 import (
 	"encoding/json"
-	"fmt"
-	"regexp"
-	"strings"
 
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
@@ -49,8 +46,8 @@ func (e *event) Connected() bool {
 	return e.state.Connected
 }
 
-func (e *event) JoinChannel(channel string) {
-	e.channelsToJoin = append(e.channelsToJoin, channel)
+func (e *event) JoinChannel(channelID string) {
+	e.channelsToJoin = append(e.channelsToJoin, channelID)
 }
 
 func (e *event) Custom() spanner.CustomEvent {
@@ -109,87 +106,12 @@ func (e *event) finishEvent(req request) error {
 	return nil
 }
 
-var channelIDRegex = regexp.MustCompile("^[a-z0-9-]{1}[a-z0-9-]{0,20}$")
-
 func (e *event) doJoinChannel(channel string, req request) error {
-	if channelIDRegex.MatchString(channel) {
-		_, _, _, err := req.client.JoinConversation(channel)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Remove any hashes at the start of the channel name
-	channel = strings.TrimLeft(channel, "#")
-
-	authTest, err := req.client.AuthTest()
+	_, _, _, err := req.client.JoinConversation(channel)
 	if err != nil {
 		return err
 	}
-
-	channels, err := getAllConversations(req.client, authTest.UserID)
-	if err != nil {
-		return err
-	}
-	for _, c := range channels {
-		if c.Name == channel || c.ID == channel {
-			// Already in this channel
-			fmt.Println("Already in the channel:", channel)
-			return nil
-		}
-	}
-
-	allChannels, err := getAllConversations(req.client, "")
-	if err != nil {
-		return err
-	}
-
-	for _, c := range allChannels {
-		if c.Name == channel || c.ID == channel {
-			_, _, _, err = req.client.JoinConversation(c.ID)
-			if err != nil {
-				return err
-			}
-			fmt.Println("Joined the channel:", channel)
-			return nil
-		}
-	}
-
 	return nil
-}
-
-// TODO: Short circuit pagination as needed
-// TODO: Allow for caching of channel lists
-func getAllConversations(client *socketmode.Client, userID string) ([]slack.Channel, error) {
-	var (
-		nextCursor      string = "more"
-		cursor          string = ""
-		channels        []slack.Channel
-		currentChannels []slack.Channel
-		err             error
-	)
-	for nextCursor != "" {
-		if userID != "" {
-			currentChannels, nextCursor, err = client.GetConversationsForUser(&slack.GetConversationsForUserParameters{
-				UserID:          userID,
-				Cursor:          cursor,
-				Limit:           200,
-				ExcludeArchived: true,
-			})
-		} else {
-			currentChannels, nextCursor, err = client.GetConversations(&slack.GetConversationsParameters{
-				Cursor:          cursor,
-				Limit:           200,
-				ExcludeArchived: true,
-			})
-		}
-		if err != nil {
-			return nil, err
-		}
-		cursor = nextCursor
-		channels = append(channels, currentChannels...)
-	}
-	return channels, nil
 }
 
 type eventPopulation struct {

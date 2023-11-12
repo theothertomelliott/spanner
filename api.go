@@ -17,7 +17,7 @@ type Event interface {
 	ReceiveMessage() ReceivedMessage
 	SlashCommand(command string) SlashCommand
 
-	JoinChannel(channel string)
+	JoinChannel(channelID string)
 	SendMessage(channelID string) Message
 }
 

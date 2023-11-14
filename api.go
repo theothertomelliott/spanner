@@ -3,9 +3,14 @@ package spanner
 // App is the top level for a chat application.
 // Call Run with an event handling function to start the application.
 type App interface {
-	Run(func(ev Event) error) error
+	Run(EventHandlerFunc) error
 	SendCustom(CustomEvent) error
 }
+
+// EventHandlerFunc represents a function that processes chat events from Spanner.
+// This function will be called multiple times and is responsible both for creating
+// UI elements and responding to the input received.
+type EventHandlerFunc func(ev Event) error
 
 // Event represents an event received from the Slack platform.
 // It provides functions representing each type of event that can be received.

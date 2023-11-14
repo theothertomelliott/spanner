@@ -69,7 +69,7 @@ type combinedEvent struct {
 	customEvent *customEvent
 }
 
-func (s *app) Run(handler func(ev spanner.Event) error) error {
+func (s *app) Run(handler spanner.EventHandlerFunc) error {
 	go func() {
 		for ce := range s.custom {
 			s.combinedEvent <- combinedEvent{

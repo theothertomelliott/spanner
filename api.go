@@ -12,10 +12,10 @@ type App interface {
 // For example, ReceivedMessage will return a message that may have been received in this event.
 // Functions will return nil if the current event does not match the type of event.
 type Event interface {
-	Connected() bool
-	Custom() CustomEvent
+	ReceiveConnected() bool
+	ReceiveCustomEvent() CustomEvent
 	ReceiveMessage() ReceivedMessage
-	SlashCommand(command string) SlashCommand
+	ReceiveSlashCommand(command string) SlashCommand
 
 	JoinChannel(channelID string)
 	SendMessage(channelID string) Message
@@ -43,14 +43,14 @@ type SlashCommand interface {
 // It can be used to create blocks and handle submission or closing of the modal.
 type Modal interface {
 	BlockUI
-	Submit(title string) ModalSubmission
-	Close(title string) bool
+	SubmitButton(title string) ModalSubmission
+	CloseButton(title string) bool
 }
 
 // ModalSubmission handles a modal being submitted.
 // It can be used to send a response message or push a new modal onto the stack.
 type ModalSubmission interface {
-	Push(title string) Modal
+	PushModal(title string) Modal
 }
 
 // ReceivedMessage represents a message received from Slack.

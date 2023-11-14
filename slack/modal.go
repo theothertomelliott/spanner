@@ -62,7 +62,7 @@ func (m *modal) render() *slack.ModalViewRequest {
 	return modal
 }
 
-func (m *modal) Submit(text string) spanner.ModalSubmission {
+func (m *modal) SubmitButton(text string) spanner.ModalSubmission {
 	m.submitText = &text
 	// This should be redundant, but for some reason, returning m.Submission
 	// resulted in `m.Submit("txt") != nil` being false even if m.Submission
@@ -73,7 +73,7 @@ func (m *modal) Submit(text string) spanner.ModalSubmission {
 	return m.Submission
 }
 
-func (m *modal) Close(text string) bool {
+func (m *modal) CloseButton(text string) bool {
 	m.closeText = &text
 	return m.update == closed
 }
@@ -154,7 +154,7 @@ type modalSubmission struct {
 	parent *modal
 }
 
-func (m *modalSubmission) Push(title string) spanner.Modal {
+func (m *modalSubmission) PushModal(title string) spanner.Modal {
 	if m.NextModal != nil {
 		return m.NextModal
 	}

@@ -25,7 +25,7 @@ func main() {
 
 	fmt.Println("Starting app")
 	err = app.Run(func(ev spanner.Event) error {
-		if ev.Connected() {
+		if ev.ReceiveConnected() {
 			log.Println("Connected - will do some setup here")
 			ev.JoinChannel("#framework-bot-test")
 			ev.JoinChannel("#random")

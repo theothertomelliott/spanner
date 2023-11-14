@@ -28,7 +28,7 @@ func main() {
 	}))
 
 	err = app.Run(func(ev spanner.Event) error {
-		if custom := ev.Custom(); custom != nil {
+		if custom := ev.ReceiveCustomEvent(); custom != nil {
 			log.Printf("Custom body: %+v", custom.Body())
 
 			msg := ev.SendMessage("C062778EYRZ")

@@ -31,11 +31,11 @@ func main() {
 }
 
 func handler(ev spanner.Event) error {
-	if testSlash := ev.SlashCommand("/testslash"); testSlash != nil {
+	if testSlash := ev.ReceiveSlashCommand("/testslash"); testSlash != nil {
 		fmt.Printf("Handling /testslash from user %v in channel %v\n", testSlash.User(), testSlash.Channel())
 		modal := testSlash.Modal("My Modal")
 
-		if modal.Close("Cancel") {
+		if modal.CloseButton("Cancel") {
 			fmt.Println("Closed")
 			return nil
 		}
@@ -70,10 +70,10 @@ func handler(ev spanner.Event) error {
 		}
 
 		if finalNumber != "" {
-			if submit := modal.Submit("Submit"); submit != nil {
+			if submit := modal.SubmitButton("Submit"); submit != nil {
 				fmt.Println("Your number:", finalNumber)
 
-				modal2 := submit.Push("Step 2")
+				modal2 := submit.PushModal("Step 2")
 				modal2.PlainText("Hello")
 
 				dropdown := modal2.Select("Dropdown", spanner.Options("a", "b", "c"))
@@ -85,7 +85,7 @@ func handler(ev spanner.Event) error {
 				multiLine := modal2.MultilineTextInput("Multi line", "Hint", "Placeholder")
 				fmt.Println("Multi line:", multiLine)
 
-				if submit := modal2.Submit("Submit"); submit != nil {
+				if submit := modal2.SubmitButton("Submit"); submit != nil {
 					msg := ev.SendMessage(testSlash.Channel().ID())
 					msg.Markdown(fmt.Sprintf("Thank you for completing our modal view <@%v>", testSlash.User().Name()))
 					msg.PlainText(fmt.Sprintf("Your number was %v", finalNumber))

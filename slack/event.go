@@ -42,7 +42,7 @@ type eventState struct {
 	Custom       *customEvent     `json:"customEvent"`
 }
 
-func (e *event) Connected() bool {
+func (e *event) ReceiveConnected() bool {
 	return e.state.Connected
 }
 
@@ -50,7 +50,7 @@ func (e *event) JoinChannel(channelID string) {
 	e.channelsToJoin = append(e.channelsToJoin, channelID)
 }
 
-func (e *event) Custom() spanner.CustomEvent {
+func (e *event) ReceiveCustomEvent() spanner.CustomEvent {
 	if e.state.Custom != nil {
 		return e.state.Custom
 	}
@@ -64,7 +64,7 @@ func (e *event) ReceiveMessage() spanner.ReceivedMessage {
 	return nil
 }
 
-func (e *event) SlashCommand(command string) spanner.SlashCommand {
+func (e *event) ReceiveSlashCommand(command string) spanner.SlashCommand {
 	if e.state.SlashCommand == nil {
 		return nil
 	}

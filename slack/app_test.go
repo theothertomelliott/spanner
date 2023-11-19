@@ -10,13 +10,17 @@ import (
 )
 
 func TestHandlerIsCalledForEachEvent(t *testing.T) {
-	slackEvents := make(chan socketmode.Event)
-	combinedEvents := make(chan combinedEvent, 2)
+	slackEvents := make(chan socketmode.Event, 10)
+	customEvents := make(chan *customEvent, 10)
+	runCalls := make(chan struct{}, 1)
+
 	testApp := &app{
-		client:        runSocketClient{},
+		client: runSocketClient{
+			runCalls: runCalls,
+		},
 		slackEvents:   slackEvents,
-		combinedEvent: combinedEvents,
-		customEvents:  make(chan *customEvent, 2),
+		combinedEvent: make(chan combinedEvent, 2),
+		customEvents:  customEvents,
 	}
 
 	results := make(chan struct{}, 2)
@@ -28,25 +32,37 @@ func TestHandlerIsCalledForEachEvent(t *testing.T) {
 		})
 	}()
 
+	select {
+	case <-runCalls:
+	case <-time.After(time.Second):
+		t.Errorf("expected run to be called on Slack client")
+	}
+
 	for i := 0; i < 10; i++ {
+		var eventType string
 		if i%2 == 0 {
 			slackEvents <- socketmode.Event{}
+			eventType = "slack"
 		} else {
-			combinedEvents <- combinedEvent{}
+			customEvents <- &customEvent{}
+			eventType = "custom"
 		}
 		select {
 		case <-results:
 		case <-time.After(time.Second):
-			t.Errorf("timeout waiting for event")
+			t.Errorf("timeout waiting for %v event", eventType)
 		}
 	}
 }
 
 type runSocketClient struct {
 	nilSocketClient
+
+	runCalls chan struct{}
 }
 
-func (runSocketClient) RunContext(context.Context) error {
+func (r runSocketClient) RunContext(context.Context) error {
+	r.runCalls <- struct{}{}
 	return nil
 }
 

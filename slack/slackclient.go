@@ -285,3 +285,51 @@ type socketClient interface {
 	// WorkflowStepCompleted(workflowStepExecuteID string, options ...WorkflowStepCompletedRequestOption) error
 	// WorkflowStepFailed(workflowStepExecuteID string, errorMessage string) error
 }
+
+var _ socketClient = nilSocketClient{}
+
+// nilSocketClient is a socket client that implements socketClient but
+// panics on all calls.
+// This can be composed with custom functions to avoid verbose implementations.
+type nilSocketClient struct {
+}
+
+// Ack implements socketClient.
+func (nilSocketClient) Ack(req socketmode.Request, payload ...interface{}) {
+	panic("unimplemented")
+}
+
+// GetConversationInfoContext implements socketClient.
+func (nilSocketClient) GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error) {
+	panic("unimplemented")
+}
+
+// GetUserInfoContext implements socketClient.
+func (nilSocketClient) GetUserInfoContext(ctx context.Context, user string) (*slack.User, error) {
+	panic("unimplemented")
+}
+
+// JoinConversationContext implements socketClient.
+func (nilSocketClient) JoinConversationContext(ctx context.Context, channelID string) (*slack.Channel, string, []string, error) {
+	panic("unimplemented")
+}
+
+// OpenViewContext implements socketClient.
+func (nilSocketClient) OpenViewContext(ctx context.Context, triggerID string, view slack.ModalViewRequest) (*slack.ViewResponse, error) {
+	panic("unimplemented")
+}
+
+// RunContext implements socketClient.
+func (nilSocketClient) RunContext(ctx context.Context) error {
+	panic("unimplemented")
+}
+
+// SendMessageContext implements socketClient.
+func (nilSocketClient) SendMessageContext(ctx context.Context, channelID string, options ...slack.MsgOption) (_channel string, _timestamp string, _text string, err error) {
+	panic("unimplemented")
+}
+
+// UpdateViewContext implements socketClient.
+func (nilSocketClient) UpdateViewContext(ctx context.Context, view slack.ModalViewRequest, externalID string, hash string, viewID string) (*slack.ViewResponse, error) {
+	panic("unimplemented")
+}

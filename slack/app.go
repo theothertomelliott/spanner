@@ -52,18 +52,18 @@ func NewApp(config AppConfig) (spanner.App, error) {
 
 	return &app{
 		client:        client,
-		events:        events,
+		slackEvents:   events,
 		combinedEvent: make(chan combinedEvent, 2),
-		custom:        make(chan *customEvent, 2),
+		customEvents:  make(chan *customEvent, 2),
 	}, nil
 }
 
 type app struct {
 	client socketClient
-	events chan socketmode.Event
 
+	slackEvents   chan socketmode.Event
+	customEvents  chan *customEvent
 	combinedEvent chan combinedEvent
-	custom        chan *customEvent
 }
 
 type combinedEvent struct {
@@ -73,14 +73,14 @@ type combinedEvent struct {
 
 func (s *app) Run(handler spanner.EventHandlerFunc) error {
 	go func() {
-		for ce := range s.custom {
+		for ce := range s.customEvents {
 			s.combinedEvent <- combinedEvent{
 				customEvent: ce,
 			}
 		}
 	}()
 	go func() {
-		for evt := range s.events {
+		for evt := range s.slackEvents {
 			s.combinedEvent <- combinedEvent{
 				ev: &evt,
 			}
@@ -116,7 +116,7 @@ func (s *app) Run(handler spanner.EventHandlerFunc) error {
 }
 
 func (s *app) SendCustom(c spanner.CustomEvent) error {
-	s.custom <- &customEvent{
+	s.customEvents <- &customEvent{
 		body: c.Body(),
 	}
 	return nil

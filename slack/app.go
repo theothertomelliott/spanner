@@ -1,6 +1,7 @@
 package slack
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -47,18 +48,19 @@ func NewApp(config AppConfig) (spanner.App, error) {
 		socketmode.OptionDebug(config.Debug),
 		socketmode.OptionLog(log.New(os.Stdout, "socketmode: ", log.Lshortfile|log.LstdFlags)),
 	)
+	events := client.Events
 
 	return &app{
-		api:           api,
 		client:        client,
+		events:        events,
 		combinedEvent: make(chan combinedEvent, 2),
 		custom:        make(chan *customEvent, 2),
 	}, nil
 }
 
 type app struct {
-	api    *slack.Client
-	client *socketmode.Client
+	client socketClient
+	events chan socketmode.Event
 
 	combinedEvent chan combinedEvent
 	custom        chan *customEvent
@@ -78,7 +80,7 @@ func (s *app) Run(handler spanner.EventHandlerFunc) error {
 		}
 	}()
 	go func() {
-		for evt := range s.client.Events {
+		for evt := range s.events {
 			s.combinedEvent <- combinedEvent{
 				ev: &evt,
 			}
@@ -110,7 +112,7 @@ func (s *app) Run(handler spanner.EventHandlerFunc) error {
 			}
 		}
 	}()
-	return s.client.Run()
+	return s.client.RunContext(context.TODO())
 }
 
 func (s *app) SendCustom(c spanner.CustomEvent) error {
@@ -125,7 +127,7 @@ type request struct {
 	es   *event
 	hash string
 
-	client *socketmode.Client
+	client socketClient
 }
 
 func (r request) Metadata() []byte {

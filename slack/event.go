@@ -1,6 +1,7 @@
 package slack
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/slack-go/slack"
@@ -107,7 +108,7 @@ func (e *event) finishEvent(req request) error {
 }
 
 func (e *event) doJoinChannel(channel string, req request) error {
-	_, _, _, err := req.client.JoinConversation(channel)
+	_, _, _, err := req.client.JoinConversationContext(context.TODO(), channel)
 	if err != nil {
 		return err
 	}
@@ -120,7 +121,7 @@ type eventPopulation struct {
 	messageIndex             string
 }
 
-func parseCombinedEvent(client *socketmode.Client, ce combinedEvent) *event {
+func parseCombinedEvent(client socketClient, ce combinedEvent) *event {
 	out := &event{
 		state: eventState{
 			MessageSender: &MessageSender{},

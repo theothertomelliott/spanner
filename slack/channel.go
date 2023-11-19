@@ -1,15 +1,16 @@
 package slack
 
 import (
+	"context"
+
 	"github.com/slack-go/slack"
-	"github.com/slack-go/slack/socketmode"
 	"github.com/theothertomelliott/spanner"
 )
 
 var _ spanner.Channel = &channel{}
 
 type channel struct {
-	client *socketmode.Client
+	client socketClient
 
 	IDInternal   string `json:"id"`
 	NameInternal string `json:"name"`
@@ -31,7 +32,7 @@ func (c *channel) load() {
 		return
 	}
 
-	ch, err := c.client.GetConversationInfo(&slack.GetConversationInfoInput{
+	ch, err := c.client.GetConversationInfoContext(context.TODO(), &slack.GetConversationInfoInput{
 		ChannelID: c.IDInternal,
 	})
 	if err != nil {

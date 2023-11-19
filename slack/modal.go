@@ -1,6 +1,7 @@
 package slack
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/slack-go/slack"
@@ -93,7 +94,7 @@ func (m *modal) finishEvent(req request) error {
 	switch update := m.update; update {
 	case created:
 		if !m.HasParent {
-			_, err = req.client.OpenView(m.triggerID, *modal)
+			_, err = req.client.OpenViewContext(context.TODO(), m.triggerID, *modal)
 			if err != nil {
 				return fmt.Errorf("opening view: %w", renderSlackError(err))
 			}
@@ -101,7 +102,8 @@ func (m *modal) finishEvent(req request) error {
 			payload = slack.NewPushViewSubmissionResponse(modal)
 		}
 	case action:
-		_, err := req.client.UpdateView(
+		_, err := req.client.UpdateViewContext(
+			context.TODO(),
 			*modal,
 			m.ViewExternalID,
 			req.hash,

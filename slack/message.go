@@ -1,6 +1,7 @@
 package slack
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/slack-go/slack"
@@ -45,7 +46,8 @@ func (m *message) Channel(channelID string) {
 
 func (m *message) finishEvent(req request) error {
 	if m.unsent {
-		_, _, _, err := req.client.SendMessage(
+		_, _, _, err := req.client.SendMessageContext(
+			context.TODO(),
 			m.ChannelID,
 			slack.MsgOptionBlocks(m.blocks...),
 			slack.MsgOptionMetadata(slack.SlackMetadata{

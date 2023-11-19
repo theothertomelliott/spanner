@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 	"github.com/slack-go/slack/socketmode"
 	"github.com/theothertomelliott/spanner"
@@ -87,6 +88,18 @@ func messageEvent(channelID, userID, text string) socketmode.Event {
 					Channel: channelID,
 				},
 			},
+		},
+	}
+}
+
+func slashCommandEvent(channelID, userID, triggerID, command string) socketmode.Event {
+	return socketmode.Event{
+		Type: socketmode.EventTypeSlashCommand,
+		Data: slack.SlashCommand{
+			ChannelID: channelID,
+			UserID:    userID,
+			TriggerID: triggerID,
+			Command:   command,
 		},
 	}
 }

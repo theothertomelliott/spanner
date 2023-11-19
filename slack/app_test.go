@@ -11,7 +11,6 @@ import (
 
 func TestHandlerIsCalledForEachEvent(t *testing.T) {
 	slackEvents := make(chan socketmode.Event, 10)
-	customEvents := make(chan *customEvent, 10)
 	runCalls := make(chan struct{}, 1)
 
 	testApp := &app{
@@ -20,7 +19,7 @@ func TestHandlerIsCalledForEachEvent(t *testing.T) {
 		},
 		slackEvents:   slackEvents,
 		combinedEvent: make(chan combinedEvent, 2),
-		customEvents:  customEvents,
+		customEvents:  make(chan *customEvent, 10),
 	}
 
 	results := make(chan struct{}, 2)
@@ -44,7 +43,7 @@ func TestHandlerIsCalledForEachEvent(t *testing.T) {
 			slackEvents <- socketmode.Event{}
 			eventType = "slack"
 		} else {
-			customEvents <- &customEvent{}
+			testApp.SendCustom(NewCustomEvent(map[string]interface{}{}))
 			eventType = "custom"
 		}
 		select {

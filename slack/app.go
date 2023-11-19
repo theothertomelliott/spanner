@@ -1,6 +1,7 @@
 package slack
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -47,21 +48,26 @@ func NewApp(config AppConfig) (spanner.App, error) {
 		socketmode.OptionDebug(config.Debug),
 		socketmode.OptionLog(log.New(os.Stdout, "socketmode: ", log.Lshortfile|log.LstdFlags)),
 	)
+	events := client.Events
 
+	return newAppWithClient(client, events), nil
+}
+
+func newAppWithClient(client socketClient, slackEvents chan socketmode.Event) spanner.App {
 	return &app{
-		api:           api,
 		client:        client,
+		slackEvents:   slackEvents,
 		combinedEvent: make(chan combinedEvent, 2),
-		custom:        make(chan *customEvent, 2),
-	}, nil
+		customEvents:  make(chan *customEvent, 2),
+	}
 }
 
 type app struct {
-	api    *slack.Client
-	client *socketmode.Client
+	client socketClient
 
+	slackEvents   chan socketmode.Event
+	customEvents  chan *customEvent
 	combinedEvent chan combinedEvent
-	custom        chan *customEvent
 }
 
 type combinedEvent struct {
@@ -71,50 +77,67 @@ type combinedEvent struct {
 
 func (s *app) Run(handler spanner.EventHandlerFunc) error {
 	go func() {
-		for ce := range s.custom {
+		for ce := range s.customEvents {
 			s.combinedEvent <- combinedEvent{
 				customEvent: ce,
 			}
 		}
 	}()
 	go func() {
-		for evt := range s.client.Events {
+		for evt := range s.slackEvents {
 			s.combinedEvent <- combinedEvent{
 				ev: &evt,
 			}
 		}
 	}()
+
+	done := make(chan error)
 	go func() {
-		for ce := range s.combinedEvent {
-			es := parseCombinedEvent(s.client, ce)
-			err := handler(es)
-			if err != nil {
-				log.Printf("handling event: %v", err)
-				continue // Move on without acknowledging, will force a repeat
-			}
-			var req socketmode.Request
-
-			if evt := ce.ev; evt != nil && evt.Request != nil {
-				req = *evt.Request
-			}
-
-			err = es.finishEvent(request{
-				req:    req,
-				es:     es,
-				hash:   es.hash,
-				client: s.client,
-			})
-			if err != nil {
-				log.Printf("handling request: %v", renderSlackError(err))
-				continue // Move on without acknowledging, will force a repeat
-			}
+		fmt.Println("running")
+		err := s.client.RunContext(context.TODO())
+		if err != nil {
+			done <- err
 		}
+		close(done)
 	}()
-	return s.client.Run()
+
+	for {
+		select {
+		case ce := <-s.combinedEvent:
+			s.handleEvent(handler, ce)
+		case err := <-done:
+			fmt.Println("done err received: ", err)
+			return err
+		}
+	}
+}
+
+func (s *app) handleEvent(handler spanner.EventHandlerFunc, ce combinedEvent) {
+	es := parseCombinedEvent(s.client, ce)
+	err := handler(es)
+	if err != nil {
+		return // Move on without acknowledging, will force a repeat
+	}
+	var req socketmode.Request
+
+	if evt := ce.ev; evt != nil && evt.Request != nil {
+		req = *evt.Request
+	}
+
+	err = es.finishEvent(request{
+		req:    req,
+		es:     es,
+		hash:   es.hash,
+		client: s.client,
+	})
+	if err != nil {
+		log.Printf("handling request: %v", renderSlackError(err))
+		return // Move on without acknowledging, will force a repeat
+	}
 }
 
 func (s *app) SendCustom(c spanner.CustomEvent) error {
-	s.custom <- &customEvent{
+	s.customEvents <- &customEvent{
 		body: c.Body(),
 	}
 	return nil
@@ -125,7 +148,7 @@ type request struct {
 	es   *event
 	hash string
 
-	client *socketmode.Client
+	client socketClient
 }
 
 func (r request) Metadata() []byte {

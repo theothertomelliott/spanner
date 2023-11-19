@@ -1,13 +1,12 @@
 package slack
 
 import (
+	"context"
 	"fmt"
-
-	"github.com/slack-go/slack/socketmode"
 )
 
 type user struct {
-	client *socketmode.Client
+	client socketClient
 	Loaded bool `json:"loaded"`
 
 	IDInternal       string `json:"id"`
@@ -42,7 +41,7 @@ func (u *user) load() {
 
 	fmt.Printf("%+v\n", u)
 
-	user, err := u.client.GetUserInfo(u.IDInternal)
+	user, err := u.client.GetUserInfoContext(context.TODO(), u.IDInternal)
 	if err != nil {
 		// TODO: Hoist up this error somehow
 		panic(err)

@@ -3,6 +3,7 @@ package slack
 import (
 	"crypto/sha1"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/slack-go/slack"
@@ -198,6 +199,7 @@ func (b *Blocks) addSelect(text string, options []spanner.Option) (inputBlockID 
 	for _, option := range options {
 		values = append(values, option.Value)
 	}
+	sort.Strings(values)
 	optionHash := hashstr(strings.Join(values, ","))
 
 	inputBlockID = fmt.Sprintf("input-%v-%v", b.inputID, optionHash)

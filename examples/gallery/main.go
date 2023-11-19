@@ -27,8 +27,8 @@ func main() {
 	err = app.Run(func(ev spanner.Event) error {
 		if ev.ReceiveConnected() {
 			log.Println("Connected - will do some setup here")
-			ev.JoinChannel("#framework-bot-test")
-			ev.JoinChannel("#random")
+			ev.JoinChannel("C062778EYRZ") // Test channel from Slack workspace used for QA
+			ev.JoinChannel("C016E85HUUA") // #random channel from QA workspace
 		}
 
 		if msg := ev.ReceiveMessage(); msg != nil && msg.Text() == "hello" {

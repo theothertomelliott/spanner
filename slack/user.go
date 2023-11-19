@@ -2,7 +2,6 @@ package slack
 
 import (
 	"context"
-	"fmt"
 )
 
 type user struct {
@@ -38,8 +37,6 @@ func (u *user) load() {
 	if u.Loaded {
 		return
 	}
-
-	fmt.Printf("%+v\n", u)
 
 	user, err := u.client.GetUserInfoContext(context.TODO(), u.IDInternal)
 	if err != nil {

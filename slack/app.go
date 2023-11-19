@@ -93,7 +93,6 @@ func (s *app) Run(handler spanner.EventHandlerFunc) error {
 
 	done := make(chan error)
 	go func() {
-		fmt.Println("running")
 		err := s.client.RunContext(context.TODO())
 		if err != nil {
 			done <- err
@@ -106,7 +105,6 @@ func (s *app) Run(handler spanner.EventHandlerFunc) error {
 		case ce := <-s.combinedEvent:
 			s.handleEvent(handler, ce)
 		case err := <-done:
-			fmt.Println("done err received: ", err)
 			return err
 		}
 	}

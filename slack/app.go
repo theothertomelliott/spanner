@@ -50,12 +50,16 @@ func NewApp(config AppConfig) (spanner.App, error) {
 	)
 	events := client.Events
 
+	return newAppWithClient(client, events), nil
+}
+
+func newAppWithClient(client socketClient, slackEvents chan socketmode.Event) spanner.App {
 	return &app{
 		client:        client,
-		slackEvents:   events,
+		slackEvents:   slackEvents,
 		combinedEvent: make(chan combinedEvent, 2),
 		customEvents:  make(chan *customEvent, 2),
-	}, nil
+	}
 }
 
 type app struct {
@@ -86,33 +90,50 @@ func (s *app) Run(handler spanner.EventHandlerFunc) error {
 			}
 		}
 	}()
+
+	done := make(chan error)
 	go func() {
-		for ce := range s.combinedEvent {
-			es := parseCombinedEvent(s.client, ce)
-			err := handler(es)
-			if err != nil {
-				log.Printf("handling event: %v", err)
-				continue // Move on without acknowledging, will force a repeat
-			}
-			var req socketmode.Request
-
-			if evt := ce.ev; evt != nil && evt.Request != nil {
-				req = *evt.Request
-			}
-
-			err = es.finishEvent(request{
-				req:    req,
-				es:     es,
-				hash:   es.hash,
-				client: s.client,
-			})
-			if err != nil {
-				log.Printf("handling request: %v", renderSlackError(err))
-				continue // Move on without acknowledging, will force a repeat
-			}
+		fmt.Println("running")
+		err := s.client.RunContext(context.TODO())
+		if err != nil {
+			done <- err
 		}
+		close(done)
 	}()
-	return s.client.RunContext(context.TODO())
+
+	for {
+		select {
+		case ce := <-s.combinedEvent:
+			s.handleEvent(handler, ce)
+		case err := <-done:
+			fmt.Println("done err received: ", err)
+			return err
+		}
+	}
+}
+
+func (s *app) handleEvent(handler spanner.EventHandlerFunc, ce combinedEvent) {
+	es := parseCombinedEvent(s.client, ce)
+	err := handler(es)
+	if err != nil {
+		return // Move on without acknowledging, will force a repeat
+	}
+	var req socketmode.Request
+
+	if evt := ce.ev; evt != nil && evt.Request != nil {
+		req = *evt.Request
+	}
+
+	err = es.finishEvent(request{
+		req:    req,
+		es:     es,
+		hash:   es.hash,
+		client: s.client,
+	})
+	if err != nil {
+		log.Printf("handling request: %v", renderSlackError(err))
+		return // Move on without acknowledging, will force a repeat
+	}
 }
 
 func (s *app) SendCustom(c spanner.CustomEvent) error {

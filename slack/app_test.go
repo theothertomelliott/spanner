@@ -2,25 +2,23 @@ package slack
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/slack-go/slack/slackevents"
 	"github.com/slack-go/slack/socketmode"
 	"github.com/theothertomelliott/spanner"
 )
 
 func TestHandlerIsCalledForEachEvent(t *testing.T) {
 	slackEvents := make(chan socketmode.Event, 10)
-	runCalls := make(chan struct{}, 1)
+	client := newRunSocketClient()
 
-	testApp := &app{
-		client: runSocketClient{
-			runCalls: runCalls,
-		},
-		slackEvents:   slackEvents,
-		combinedEvent: make(chan combinedEvent, 2),
-		customEvents:  make(chan *customEvent, 10),
-	}
+	testApp := newAppWithClient(
+		client,
+		slackEvents,
+	)
 
 	results := make(chan struct{}, 2)
 
@@ -30,12 +28,6 @@ func TestHandlerIsCalledForEachEvent(t *testing.T) {
 			return nil
 		})
 	}()
-
-	select {
-	case <-runCalls:
-	case <-time.After(time.Second):
-		t.Errorf("expected run to be called on Slack client")
-	}
 
 	for i := 0; i < 10; i++ {
 		var eventType string
@@ -52,17 +44,49 @@ func TestHandlerIsCalledForEachEvent(t *testing.T) {
 			t.Errorf("timeout waiting for %v event", eventType)
 		}
 	}
+
+	if client.runCount != 1 {
+		t.Errorf("expected run to be called exactly once")
+	}
+}
+
+func newRunSocketClient() *runSocketClient {
+	return &runSocketClient{
+		stop: make(chan struct{}),
+	}
 }
 
 type runSocketClient struct {
 	nilSocketClient
 
-	runCalls chan struct{}
+	runMtx   sync.Mutex
+	runCount int
+
+	stop chan struct{}
 }
 
-func (r runSocketClient) RunContext(context.Context) error {
-	r.runCalls <- struct{}{}
+func (r *runSocketClient) RunContext(context.Context) error {
+	r.runMtx.Lock()
+	r.runCount++
+	r.runMtx.Unlock()
+	<-r.stop // Must block
 	return nil
 }
 
-func (runSocketClient) Ack(req socketmode.Request, payload ...interface{}) {}
+func (*runSocketClient) Ack(req socketmode.Request, payload ...interface{}) {}
+
+func messageEvent(channelID, userID, text string) socketmode.Event {
+	return socketmode.Event{
+		Type: socketmode.EventTypeEventsAPI,
+		Data: slackevents.EventsAPIEvent{
+			Type: slackevents.CallbackEvent,
+			InnerEvent: slackevents.EventsAPIInnerEvent{
+				Data: &slackevents.MessageEvent{
+					Text:    text,
+					User:    userID,
+					Channel: channelID,
+				},
+			},
+		},
+	}
+}

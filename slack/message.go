@@ -46,17 +46,17 @@ func (m *message) Channel(channelID string) {
 
 func (m *message) finishEvent(req request) error {
 	if m.unsent {
-		_, _, _, err := req.client.SendMessageContext(
+		_, _, _, err := req.client.SendMessageWithMetadata(
 			context.TODO(),
 			m.ChannelID,
-			slack.MsgOptionBlocks(m.blocks...),
-			slack.MsgOptionMetadata(slack.SlackMetadata{
+			m.blocks,
+			slack.SlackMetadata{
 				EventType: "bot_message",
 				EventPayload: map[string]interface{}{
 					"message_index": m.MessageIndex,
 					"metadata":      string(req.Metadata()),
 				},
-			}))
+			})
 		if err != nil {
 			return fmt.Errorf("sending message: %w", renderSlackError(err))
 		}

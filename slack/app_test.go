@@ -76,30 +76,44 @@ func (r *runSocketClient) RunContext(context.Context) error {
 
 func (*runSocketClient) Ack(req socketmode.Request, payload ...interface{}) {}
 
-func messageEvent(channelID, userID, text string) socketmode.Event {
+func messageEvent(messageEvent slackevents.MessageEvent) socketmode.Event {
 	return socketmode.Event{
 		Type: socketmode.EventTypeEventsAPI,
 		Data: slackevents.EventsAPIEvent{
 			Type: slackevents.CallbackEvent,
 			InnerEvent: slackevents.EventsAPIInnerEvent{
-				Data: &slackevents.MessageEvent{
-					Text:    text,
-					User:    userID,
-					Channel: channelID,
-				},
+				Data: &messageEvent,
 			},
 		},
 	}
 }
 
-func slashCommandEvent(channelID, userID, triggerID, command string) socketmode.Event {
+func slashCommandEvent(data slack.SlashCommand) socketmode.Event {
 	return socketmode.Event{
 		Type: socketmode.EventTypeSlashCommand,
-		Data: slack.SlashCommand{
-			ChannelID: channelID,
-			UserID:    userID,
-			TriggerID: triggerID,
-			Command:   command,
+		Data: data,
+	}
+}
+
+func messageInteractionEvent(
+	hash string,
+	metadata slack.SlackMetadata,
+	actionCallbacks slack.ActionCallbacks,
+	blockActionState *slack.BlockActionStates,
+) socketmode.Event {
+	return socketmode.Event{
+		Type: socketmode.EventTypeInteractive,
+		Data: slack.InteractionCallback{
+			ViewSubmissionCallback: slack.ViewSubmissionCallback{
+				Hash: hash,
+			},
+			Message: slack.Message{
+				Msg: slack.Msg{
+					Metadata: metadata,
+				},
+			},
+			ActionCallback:   actionCallbacks,
+			BlockActionState: blockActionState,
 		},
 	}
 }

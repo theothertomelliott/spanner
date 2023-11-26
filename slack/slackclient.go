@@ -220,8 +220,11 @@ type socketClient interface {
 	// SearchMessagesContext(ctx context.Context, query string, params SearchParameters) (*SearchMessages, error)
 	// SendAuthRevoke(token string) (*AuthRevokeResponse, error)
 	// SendAuthRevokeContext(ctx context.Context, token string) (*AuthRevokeResponse, error)
-	//SendMessage(channel string, options ...slack.MsgOption) (string, string, string, error)
-	SendMessageContext(ctx context.Context, channelID string, options ...slack.MsgOption) (_channel string, _timestamp string, _text string, err error)
+
+	SendMessageWithMetadata(ctx context.Context, channel string, blocks []slack.Block, metadata slack.SlackMetadata) (string, string, string, error)
+	// SendMessage(channel string, options ...slack.MsgOption) (string, string, string, error)
+	// SendMessageContext(ctx context.Context, channelID string, options ...slack.MsgOption) (_channel string, _timestamp string, _text string, err error)
+
 	// SendSSOBindingEmail(teamName string, user string) error
 	// SendSSOBindingEmailContext(ctx context.Context, teamName string, user string) error
 	// SetPurposeOfConversation(channelID string, purpose string) (*Channel, error)
@@ -324,8 +327,8 @@ func (nilSocketClient) RunContext(ctx context.Context) error {
 	panic("unimplemented")
 }
 
-// SendMessageContext implements socketClient.
-func (nilSocketClient) SendMessageContext(ctx context.Context, channelID string, options ...slack.MsgOption) (_channel string, _timestamp string, _text string, err error) {
+// SendMessageWithMetadata implements socketClient.
+func (nilSocketClient) SendMessageWithMetadata(ctx context.Context, channel string, blocks []slack.Block, metadata slack.SlackMetadata) (string, string, string, error) {
 	panic("unimplemented")
 }
 

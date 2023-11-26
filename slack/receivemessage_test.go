@@ -3,6 +3,7 @@ package slack
 import (
 	"testing"
 
+	"github.com/slack-go/slack/slackevents"
 	"github.com/slack-go/slack/socketmode"
 	"github.com/theothertomelliott/spanner"
 )
@@ -16,14 +17,12 @@ func TestReceiveMessageContent(t *testing.T) {
 		slackEvents,
 	)
 
-	expectedChannelID := "ABC123"
-	expectedUserID := "DEF456"
-	expectedText := "hello, there"
-	slackEvents <- messageEvent(
-		expectedChannelID,
-		expectedUserID,
-		expectedText,
-	)
+	message := slackevents.MessageEvent{
+		Channel: "ABC123",
+		User:    "DEF456",
+		Text:    "hello, there",
+	}
+	slackEvents <- messageEvent(message)
 
 	testApp.Run(func(evt spanner.Event) error {
 		defer func() {
@@ -37,14 +36,14 @@ func TestReceiveMessageContent(t *testing.T) {
 			t.Errorf("expected a ReceiveMessage event")
 			return nil
 		}
-		if msg.Channel().ID() != expectedChannelID {
-			t.Errorf("expected channel id %q, got %q", expectedChannelID, msg.Channel().ID())
+		if msg.Channel().ID() != message.Channel {
+			t.Errorf("expected channel id %q, got %q", message.Channel, msg.Channel().ID())
 		}
-		if msg.User().ID() != expectedUserID {
-			t.Errorf("expected user id %q, got %q", expectedChannelID, msg.User().ID())
+		if msg.User().ID() != message.User {
+			t.Errorf("expected user id %q, got %q", message.User, msg.User().ID())
 		}
-		if msg.Text() != expectedText {
-			t.Errorf("expected text %q, got %q", expectedText, msg.Text())
+		if msg.Text() != message.Text {
+			t.Errorf("expected text %q, got %q", message.Text, msg.Text())
 		}
 
 		return nil

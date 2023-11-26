@@ -3,6 +3,7 @@ package slack
 import (
 	"testing"
 
+	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/socketmode"
 	"github.com/theothertomelliott/spanner"
 )
@@ -16,14 +17,14 @@ func TestReceiveSlashCommand(t *testing.T) {
 		slackEvents,
 	)
 
-	expectedChannelID := "ABC123"
-	expectedUserID := "DEF456"
-	expectedCommand := "/mycommand"
+	slashCommand := slack.SlashCommand{
+		ChannelID: "ABC123",
+		UserID:    "DEF456",
+		TriggerID: "trigger",
+		Command:   "/mycommand",
+	}
 	slackEvents <- slashCommandEvent(
-		expectedChannelID,
-		expectedUserID,
-		"trigger",
-		expectedCommand,
+		slashCommand,
 	)
 
 	testApp.Run(func(evt spanner.Event) error {
@@ -33,16 +34,16 @@ func TestReceiveSlashCommand(t *testing.T) {
 		}()
 
 		// Expect a slash command with the expected command is received
-		cmd := evt.ReceiveSlashCommand(expectedCommand)
+		cmd := evt.ReceiveSlashCommand(slashCommand.Command)
 		if cmd == nil {
 			t.Errorf("expected a ReceiveSlashCommand event")
 			return nil
 		}
-		if cmd.Channel().ID() != expectedChannelID {
-			t.Errorf("expected channel id %q, got %q", expectedChannelID, cmd.Channel().ID())
+		if cmd.Channel().ID() != slashCommand.ChannelID {
+			t.Errorf("expected channel id %q, got %q", slashCommand.ChannelID, cmd.Channel().ID())
 		}
-		if cmd.User().ID() != expectedUserID {
-			t.Errorf("expected user id %q, got %q", expectedChannelID, cmd.User().ID())
+		if cmd.User().ID() != slashCommand.UserID {
+			t.Errorf("expected user id %q, got %q", slashCommand.UserID, cmd.User().ID())
 		}
 
 		return nil

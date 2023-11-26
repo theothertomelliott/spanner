@@ -50,7 +50,9 @@ func NewApp(config AppConfig) (spanner.App, error) {
 	)
 	events := client.Events
 
-	return newAppWithClient(client, events), nil
+	return newAppWithClient(&wrappedClient{
+		Client: client,
+	}, events), nil
 }
 
 func newAppWithClient(client socketClient, slackEvents chan socketmode.Event) spanner.App {
@@ -60,6 +62,14 @@ func newAppWithClient(client socketClient, slackEvents chan socketmode.Event) sp
 		combinedEvent: make(chan combinedEvent, 2),
 		customEvents:  make(chan *customEvent, 2),
 	}
+}
+
+type wrappedClient struct {
+	*socketmode.Client
+}
+
+func (w *wrappedClient) SendMessageWithMetadata(ctx context.Context, channelID string, blocks []slack.Block, metadata slack.SlackMetadata) (string, string, string, error) {
+	return w.SendMessageContext(ctx, channelID, slack.MsgOptionBlocks(blocks...), slack.MsgOptionMetadata(metadata))
 }
 
 type app struct {

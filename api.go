@@ -40,6 +40,7 @@ type ModalCreator interface {
 // SlashCommand represents a received slash command.
 // Messages and modal views may be created in response to the command.
 type SlashCommand interface {
+	EphemeralSender
 	Metadata
 	ModalCreator
 }
@@ -62,6 +63,10 @@ type ModalSubmission interface {
 type ReceivedMessage interface {
 	Metadata
 	Text() string
+}
+
+type EphemeralSender interface {
+	SendEphemeralMessage(text string)
 }
 
 // Message represents a message that can be sent to Slack.

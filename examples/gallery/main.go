@@ -31,6 +31,10 @@ func main() {
 			ev.JoinChannel("C016E85HUUA") // #random channel from QA workspace
 		}
 
+		if testSlash := ev.ReceiveSlashCommand("/testslash"); testSlash != nil {
+			testSlash.SendEphemeralMessage("This should be only visible to you")
+		}
+
 		if msg := ev.ReceiveMessage(); msg != nil && msg.Text() == "hello" {
 
 			reply := ev.SendMessage(msg.Channel().ID())

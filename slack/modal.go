@@ -153,6 +153,7 @@ var _ spanner.ModalSubmission = &modalSubmission{}
 type modalSubmission struct {
 	NextModal *modal `json:"next_modal"`
 
+	ephemeralSender
 	parent *modal
 }
 
@@ -174,6 +175,9 @@ func (m *modalSubmission) finishEvent(req request) error {
 	if m.NextModal != nil {
 		return m.NextModal.finishEvent(req)
 	}
+	if m.ephemeralSender.Text != nil {
+		return m.ephemeralSender.finishEvent(req)
+	}
 
 	var payload interface{} = map[string]interface{}{}
 	payload = slack.NewClearViewSubmissionResponse()
@@ -185,6 +189,9 @@ func (m *modalSubmission) finishEvent(req request) error {
 func (m *modalSubmission) populateEvent(p eventPopulation) error {
 	if m.NextModal != nil {
 		return m.NextModal.populateEvent(p)
+	}
+	if m.ephemeralSender.Text != nil {
+		return m.ephemeralSender.populateEvent(p)
 	}
 
 	return nil

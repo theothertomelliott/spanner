@@ -97,6 +97,7 @@ func slashCommandEvent(data slack.SlashCommand) socketmode.Event {
 
 func messageInteractionEvent(
 	hash string,
+	timestamp string,
 	metadata slack.SlackMetadata,
 	actionCallbacks slack.ActionCallbacks,
 	blockActionState *slack.BlockActionStates,
@@ -109,7 +110,8 @@ func messageInteractionEvent(
 			},
 			Message: slack.Message{
 				Msg: slack.Msg{
-					Metadata: metadata,
+					Metadata:  metadata,
+					Timestamp: timestamp,
 				},
 			},
 			ActionCallback:   actionCallbacks,

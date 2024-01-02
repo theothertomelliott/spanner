@@ -56,6 +56,11 @@ func main() {
 			reply.Header("Select inputs")
 
 			letter := reply.Select("Pick a letter", spanner.Options("a", "b", "c"))
+
+			if letter != "" {
+				reply.PlainText(fmt.Sprintf("You chose: %v", letter))
+			}
+
 			numbers := reply.MultipleSelect("Pick some numbers", spanner.Options("0", "1", "2", "3", "4", "5", "6", "7", "8", "9"))
 
 			if reply.Button("Done") {

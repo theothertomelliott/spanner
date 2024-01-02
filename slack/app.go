@@ -72,6 +72,10 @@ func (w *wrappedClient) SendMessageWithMetadata(ctx context.Context, channelID s
 	return w.SendMessageContext(ctx, channelID, slack.MsgOptionBlocks(blocks...), slack.MsgOptionMetadata(metadata))
 }
 
+func (w *wrappedClient) UpdateMessageWithMetadata(ctx context.Context, channelID string, timestamp string, blocks []slack.Block, metadata slack.SlackMetadata) (string, string, string, error) {
+	return w.UpdateMessageContext(ctx, channelID, timestamp, slack.MsgOptionBlocks(blocks...), slack.MsgOptionMetadata(metadata))
+}
+
 type app struct {
 	client socketClient
 

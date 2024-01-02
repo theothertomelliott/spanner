@@ -35,9 +35,11 @@ var _ spanner.Message = &message{}
 type message struct {
 	*Blocks `json:"blocks"` // This ensures that the value is not nil
 
-	ChannelID    string `json:"channel_id"`
-	MessageIndex string `json:"message_index"`
-	unsent       bool
+	ChannelID         string `json:"channel_id"`
+	MessageIndex      string `json:"message_index"`
+	PreviousBlockHash string `json:"previous_block_hash"`
+	MessageTS         string `json:"message_ts"`
+	actionMessageTS   string `json:"-"`
 }
 
 func (m *message) Channel(channelID string) {
@@ -45,8 +47,8 @@ func (m *message) Channel(channelID string) {
 }
 
 func (m *message) finishEvent(req request) error {
-	if m.unsent {
-		_, _, _, err := req.client.SendMessageWithMetadata(
+	if m.MessageTS == "" {
+		_, timestamp, _, err := req.client.SendMessageWithMetadata(
 			context.TODO(),
 			m.ChannelID,
 			m.blocks,
@@ -60,6 +62,41 @@ func (m *message) finishEvent(req request) error {
 		if err != nil {
 			return fmt.Errorf("sending message: %w", renderSlackError(err))
 		}
+
+		// Record the timestamp in the message metadata
+		// This will allow us to match messages to the correct message in the hierarchy
+		m.MessageTS = timestamp
+		_, _, _, err = req.client.UpdateMessageWithMetadata(
+			context.TODO(),
+			m.ChannelID,
+			m.MessageTS,
+			m.blocks,
+			slack.SlackMetadata{
+				EventType: "bot_message",
+				EventPayload: map[string]interface{}{
+					"message_index": m.MessageIndex,
+					"metadata":      string(req.Metadata()),
+				},
+			})
+		if err != nil {
+			return fmt.Errorf("updating message to record timestamp: %w", renderSlackError(err))
+		}
+	} else if m.MessageTS != m.actionMessageTS {
+		_, _, _, err := req.client.UpdateMessageWithMetadata(
+			context.TODO(),
+			m.ChannelID,
+			m.MessageTS,
+			m.blocks,
+			slack.SlackMetadata{
+				EventType: "bot_message",
+				EventPayload: map[string]interface{}{
+					"message_index": m.MessageIndex,
+					"metadata":      string(req.Metadata()),
+				},
+			})
+		if err != nil {
+			return fmt.Errorf("updating message: %w", renderSlackError(err))
+		}
 	}
 
 	return nil
@@ -67,6 +104,7 @@ func (m *message) finishEvent(req request) error {
 
 func (m *message) populateEvent(p eventPopulation) error {
 	m.BlockStates = blockActionToState(p)
+	m.actionMessageTS = p.interactionCallbackEvent.Message.Timestamp
 	return nil
 }
 
@@ -92,8 +130,6 @@ func (m *MessageSender) SendMessage(channelID string) spanner.Message {
 		Blocks:       &Blocks{},
 		MessageIndex: fmt.Sprintf("%v", len(m.Messages)),
 		ChannelID:    channelID,
-		unsent:       true, // This means the message was created in this event loop
-
 	}
 	m.Messages = append(m.Messages, message)
 

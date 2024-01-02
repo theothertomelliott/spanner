@@ -271,8 +271,11 @@ type socketClient interface {
 	// UninstallAppContext(ctx context.Context, clientID string, clientSecret string) error
 	// UnsetUserCustomStatus() error
 	// UnsetUserCustomStatusContext(ctx context.Context) error
+
+	UpdateMessageWithMetadata(ctx context.Context, channel string, timestamp string, blocks []slack.Block, metadata slack.SlackMetadata) (string, string, string, error)
 	// UpdateMessage(channelID string, timestamp string, options ...MsgOption) (string, string, string, error)
 	// UpdateMessageContext(ctx context.Context, channelID string, timestamp string, options ...MsgOption) (string, string, string, error)
+
 	// UpdateRemoteFile(fileID string, params RemoteFileParameters) (remotefile *RemoteFile, err error)
 	// UpdateRemoteFileContext(ctx context.Context, fileID string, params RemoteFileParameters) (remotefile *RemoteFile, err error)
 	// UpdateUserGroup(userGroupID string, options ...UpdateUserGroupsOption) (UserGroup, error)
@@ -280,7 +283,9 @@ type socketClient interface {
 	// UpdateUserGroupMembers(userGroup string, members string) (UserGroup, error)
 	// UpdateUserGroupMembersContext(ctx context.Context, userGroup string, members string) (UserGroup, error)
 	// UpdateView(view slack.ModalViewRequest, externalID string, hash string, viewID string) (*slack.ViewResponse, error)
+
 	UpdateViewContext(ctx context.Context, view slack.ModalViewRequest, externalID string, hash string, viewID string) (*slack.ViewResponse, error)
+
 	// UploadFile(params FileUploadParameters) (file *File, err error)
 	// UploadFileContext(ctx context.Context, params FileUploadParameters) (file *File, err error)
 	// UploadFileV2(params UploadFileV2Parameters) (*FileSummary, error)
@@ -329,6 +334,11 @@ func (nilSocketClient) RunContext(ctx context.Context) error {
 
 // SendMessageWithMetadata implements socketClient.
 func (nilSocketClient) SendMessageWithMetadata(ctx context.Context, channel string, blocks []slack.Block, metadata slack.SlackMetadata) (string, string, string, error) {
+	panic("unimplemented")
+}
+
+// UpdateMessageWithMetadata implements socketClient.
+func (nilSocketClient) UpdateMessageWithMetadata(ctx context.Context, channel string, timestamp string, blocks []slack.Block, metadata slack.SlackMetadata) (string, string, string, error) {
 	panic("unimplemented")
 }
 

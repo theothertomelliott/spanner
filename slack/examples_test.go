@@ -109,7 +109,9 @@ func expectOneMessage(messages chan sentMessage, updatedMessages chan updatedMes
 	select {
 	case update = <-updatedMessages:
 		if update.timestamp != timestamp {
-			return "", slack.SlackMetadata{}, "", fmt.Errorf("unexpected timestamp in update: %v", err)
+			// Ignore an update for the "parent" message
+			// TODO: This will be pretty brittle
+			update = <-updatedMessages
 		}
 	case <-time.After(time.Second):
 		return "", slack.SlackMetadata{}, "", fmt.Errorf("timed out waiting for initial message update")

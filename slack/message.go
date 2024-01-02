@@ -81,7 +81,7 @@ func (m *message) finishEvent(req request) error {
 		if err != nil {
 			return fmt.Errorf("updating message to record timestamp: %w", renderSlackError(err))
 		}
-	} else if m.MessageTS != m.actionMessageTS {
+	} else if m.MessageTS == m.actionMessageTS {
 		_, _, _, err := req.client.UpdateMessageWithMetadata(
 			context.TODO(),
 			m.ChannelID,

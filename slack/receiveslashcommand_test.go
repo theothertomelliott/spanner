@@ -4,18 +4,12 @@ import (
 	"testing"
 
 	"github.com/slack-go/slack"
-	"github.com/slack-go/slack/socketmode"
 	"github.com/theothertomelliott/spanner"
 )
 
 func TestReceiveSlashCommand(t *testing.T) {
-	slackEvents := make(chan socketmode.Event, 10)
-	client := newRunSocketClient()
-
-	testApp := newAppWithClient(
-		client,
-		slackEvents,
-	)
+	client := newTestClient()
+	testApp := client.CreateApp()
 
 	slashCommand := slack.SlashCommand{
 		ChannelID: "ABC123",
@@ -23,9 +17,9 @@ func TestReceiveSlashCommand(t *testing.T) {
 		TriggerID: "trigger",
 		Command:   "/mycommand",
 	}
-	slackEvents <- slashCommandEvent(
+	client.SendEventToAppAsync(slashCommandEvent(
 		slashCommand,
-	)
+	))
 
 	testApp.Run(func(evt spanner.Event) error {
 		defer func() {

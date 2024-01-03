@@ -43,12 +43,12 @@ func (is *slashCommand) finishEvent(req request) error {
 	return nil
 }
 
-func (is *slashCommand) populateEvent(p eventPopulation) error {
+func (is *slashCommand) populateEvent(p eventPopulation, depth int) error {
 	if is.ModalInternal != nil {
-		return is.ModalInternal.populateEvent(p)
+		return is.ModalInternal.populateEvent(p, depth+1)
 	}
 	if is.ephemeralSender.Text != nil {
-		return is.ephemeralSender.populateEvent(p)
+		return is.ephemeralSender.populateEvent(p, depth+1)
 	}
 	return nil
 }

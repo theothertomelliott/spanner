@@ -119,6 +119,7 @@ type eventPopulation struct {
 	interactionCallbackEvent slack.InteractionCallback
 	interaction              slack.InteractionType
 	messageIndex             string
+	interactionDepth         int
 }
 
 func parseCombinedEvent(client socketClient, ce combinedEvent) *event {
@@ -247,6 +248,7 @@ func parseCombinedEvent(client socketClient, ce combinedEvent) *event {
 						interaction:              interactionCallbackEvent.Type,
 						messageIndex:             "",
 					},
+					0,
 				)
 			}
 
@@ -263,13 +265,13 @@ func parseCombinedEvent(client socketClient, ce combinedEvent) *event {
 			}
 
 			if out.state.MessageSender != nil {
-				err := out.state.MessageSender.populateEvent(p)
+				err := out.state.MessageSender.populateEvent(p, 0)
 				if err != nil {
 					panic(err)
 				}
 			}
 			if out.state.Message != nil {
-				err := out.state.Message.populateEvent(p)
+				err := out.state.Message.populateEvent(p, 0)
 				if err != nil {
 					panic(err)
 				}

@@ -41,7 +41,7 @@ func TestGettingStarted(t *testing.T) {
 		},
 	)
 
-	firstTimestamp, firstMetadata, firstBlocks, err := expectOneMessage(client.messagesSent, client.messagesUpdated, "ABC123")
+	firstMetadata, firstBlocks, err := expectOneMessage(client.messagesSent, client.messagesUpdated, "ABC123")
 	if err != nil {
 		t.Errorf("receiving first message: %v", err)
 	}
@@ -51,7 +51,7 @@ func TestGettingStarted(t *testing.T) {
 
 	slackEvents <- messageInteractionEvent(
 		"hash",
-		firstTimestamp,
+		"timestamp",
 		firstMetadata,
 		slack.ActionCallbacks{},
 		&slack.BlockActionStates{
@@ -67,7 +67,7 @@ func TestGettingStarted(t *testing.T) {
 		},
 	)
 
-	_, _, secondBlocks, err := expectOneMessage(client.messagesSent, client.messagesUpdated, "ABC123")
+	_, secondBlocks, err := expectOneMessage(client.messagesSent, client.messagesUpdated, "ABC123")
 	if err != nil {
 		t.Errorf("receiving second message: %v", err)
 	}
@@ -78,15 +78,12 @@ func TestGettingStarted(t *testing.T) {
 
 // expectOneMessage checks for a single message being sent on the expected channel
 // it returns the metadata and the JSON form of the message's blocks.
-func expectOneMessage(messages chan sentMessage, updatedMessages chan updatedMessage, channelID string) (string, slack.SlackMetadata, string, error) {
-	var (
-		message sentMessage
-		update  updatedMessage
-	)
+func expectOneMessage(messages chan sentMessage, updatedMessages chan updatedMessage, channelID string) (slack.SlackMetadata, string, error) {
+	var message sentMessage
 	select {
 	case message = <-messages:
 	case <-time.After(time.Second):
-		return "", slack.SlackMetadata{}, "", fmt.Errorf("timed out waiting for expected message")
+		return slack.SlackMetadata{}, "", fmt.Errorf("timed out waiting for expected message")
 	}
 
 	// Ensure only one message was sent
@@ -94,30 +91,18 @@ func expectOneMessage(messages chan sentMessage, updatedMessages chan updatedMes
 	case s := <-messages:
 		secondBlockJson, err := json.MarshalIndent(s.blocks, "", "  ")
 		if err != nil {
-			return "", slack.SlackMetadata{}, "", fmt.Errorf("could not marshal block data: %v", err)
+			return slack.SlackMetadata{}, "", fmt.Errorf("could not marshal block data: %v", err)
 		}
-		return "", slack.SlackMetadata{}, "", fmt.Errorf("expected exactly one message, got a second message with: %v", string(secondBlockJson))
+		return slack.SlackMetadata{}, "", fmt.Errorf("expected exactly one message, got a second message with: %v", string(secondBlockJson))
 	case <-time.After(time.Second / 100):
 	}
 
-	timestamp := hashstr(fmt.Sprint(message.blocks))
 	blockJson, err := json.MarshalIndent(message.blocks, "", "  ")
 	if err != nil {
-		return "", slack.SlackMetadata{}, "", fmt.Errorf("could not marshal block data: %v", err)
+		return slack.SlackMetadata{}, "", fmt.Errorf("could not marshal block data: %v", err)
 	}
 
-	select {
-	case update = <-updatedMessages:
-		if update.timestamp != timestamp {
-			// Ignore an update for the "parent" message
-			// TODO: This will be pretty brittle
-			update = <-updatedMessages
-		}
-	case <-time.After(time.Second):
-		return "", slack.SlackMetadata{}, "", fmt.Errorf("timed out waiting for initial message update")
-	}
-
-	return timestamp, update.metadata, string(blockJson), nil
+	return message.metadata, string(blockJson), nil
 }
 
 // handler should be kept in sync with README.md and examples/gettingstarted/main.go

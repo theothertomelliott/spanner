@@ -82,6 +82,8 @@ type app struct {
 	slackEvents   chan socketmode.Event
 	customEvents  chan *customEvent
 	combinedEvent chan combinedEvent
+
+	postEventFunc spanner.PostEventFunc
 }
 
 type combinedEvent struct {
@@ -124,6 +126,10 @@ func (s *app) Run(handler spanner.EventHandlerFunc) error {
 	}
 }
 
+func (s *app) SetPostEventFunc(f spanner.PostEventFunc) {
+	s.postEventFunc = f
+}
+
 func (s *app) handleEvent(handler spanner.EventHandlerFunc, ce combinedEvent) {
 	es := parseCombinedEvent(s.client, ce)
 	err := handler(es)
@@ -145,6 +151,10 @@ func (s *app) handleEvent(handler spanner.EventHandlerFunc, ce combinedEvent) {
 	if err != nil {
 		log.Printf("handling request: %v", renderSlackError(err))
 		return // Move on without acknowledging, will force a repeat
+	}
+
+	if s.postEventFunc != nil {
+		s.postEventFunc()
 	}
 }
 

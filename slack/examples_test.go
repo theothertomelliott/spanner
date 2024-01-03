@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
@@ -25,6 +24,11 @@ func TestGettingStarted(t *testing.T) {
 		slackEvents,
 	)
 
+	postEvent := make(chan interface{}, 10)
+	testApp.SetPostEventFunc(func() {
+		postEvent <- struct{}{}
+	})
+
 	go func() {
 		err := testApp.Run(handler)
 		if err != nil {
@@ -41,18 +45,26 @@ func TestGettingStarted(t *testing.T) {
 		},
 	)
 
-	firstMetadata, firstBlocks, err := expectOneMessage(client.messagesSent, client.messagesUpdated, "ABC123")
-	if err != nil {
-		t.Errorf("receiving first message: %v", err)
+	// Wait for event to be handled
+	<-postEvent
+
+	// Expect a single message and clear the message list
+	if len(client.messagesSent) != 1 {
+		t.Errorf("expected one message to be sent, got %d", len(client.messagesSent))
 	}
-	if !strings.Contains(firstBlocks, `Hello to you too: `) {
+	msg := client.messagesSent[0]
+	client.messagesSent = nil
+
+	firstBlocks, _ := json.MarshalIndent(msg.blocks, "", "  ")
+	if !strings.Contains(string(firstBlocks), `Hello to you too: `) {
 		t.Errorf("first message content was not as expected, got: %v", string(firstBlocks))
 	}
 
+	// Select an option value
 	slackEvents <- messageInteractionEvent(
 		"hash",
 		"timestamp",
-		firstMetadata,
+		msg.metadata,
 		slack.ActionCallbacks{},
 		&slack.BlockActionStates{
 			Values: map[string]map[string]slack.BlockAction{
@@ -67,42 +79,19 @@ func TestGettingStarted(t *testing.T) {
 		},
 	)
 
-	_, secondBlocks, err := expectOneMessage(client.messagesSent, client.messagesUpdated, "ABC123")
-	if err != nil {
-		t.Errorf("receiving second message: %v", err)
-	}
-	if !strings.Contains(secondBlocks, `You chose \"c\"`) {
-		t.Errorf("message content was not as expected, got: %v", secondBlocks)
-	}
-}
+	// Wait for event to be handled
+	<-postEvent
 
-// expectOneMessage checks for a single message being sent on the expected channel
-// it returns the metadata and the JSON form of the message's blocks.
-func expectOneMessage(messages chan sentMessage, updatedMessages chan updatedMessage, channelID string) (slack.SlackMetadata, string, error) {
-	var message sentMessage
-	select {
-	case message = <-messages:
-	case <-time.After(time.Second):
-		return slack.SlackMetadata{}, "", fmt.Errorf("timed out waiting for expected message")
+	if len(client.messagesSent) != 1 {
+		t.Errorf("expected one message to be sent, got %d", len(client.messagesSent))
 	}
+	msg = client.messagesSent[0]
+	client.messagesSent = nil
 
-	// Ensure only one message was sent
-	select {
-	case s := <-messages:
-		secondBlockJson, err := json.MarshalIndent(s.blocks, "", "  ")
-		if err != nil {
-			return slack.SlackMetadata{}, "", fmt.Errorf("could not marshal block data: %v", err)
-		}
-		return slack.SlackMetadata{}, "", fmt.Errorf("expected exactly one message, got a second message with: %v", string(secondBlockJson))
-	case <-time.After(time.Second / 100):
+	secondBlocks, _ := json.MarshalIndent(msg.blocks, "", "  ")
+	if !strings.Contains(string(secondBlocks), `You chose \"c\"`) {
+		t.Errorf("message content was not as expected, got: %v", string(secondBlocks))
 	}
-
-	blockJson, err := json.MarshalIndent(message.blocks, "", "  ")
-	if err != nil {
-		return slack.SlackMetadata{}, "", fmt.Errorf("could not marshal block data: %v", err)
-	}
-
-	return message.metadata, string(blockJson), nil
 }
 
 // handler should be kept in sync with README.md and examples/gettingstarted/main.go
@@ -121,17 +110,15 @@ func handler(ev spanner.Event) error {
 
 func newExampleTestClient() *exampleTestClient {
 	return &exampleTestClient{
-		messagesSent:    make(chan sentMessage, 10),
-		messagesUpdated: make(chan updatedMessage, 10),
-		stop:            make(chan struct{}),
+		stop: make(chan struct{}),
 	}
 }
 
 type exampleTestClient struct {
 	nilSocketClient
 
-	messagesSent    chan sentMessage
-	messagesUpdated chan updatedMessage
+	messagesSent    []sentMessage
+	messagesUpdated []updatedMessage
 
 	stop chan struct{}
 }
@@ -155,22 +142,22 @@ func (r *exampleTestClient) RunContext(context.Context) error {
 func (*exampleTestClient) Ack(req socketmode.Request, payload ...interface{}) {}
 
 func (c *exampleTestClient) SendMessageWithMetadata(ctx context.Context, channelID string, blocks []slack.Block, metadata slack.SlackMetadata) (string, string, string, error) {
-	c.messagesSent <- sentMessage{
+	c.messagesSent = append(c.messagesSent, sentMessage{
 		channelID: channelID,
 		blocks:    blocks,
 		metadata:  metadata,
-	}
-	return "", hashstr(fmt.Sprint(blocks)), "", nil
+	})
+	return "", "", "", nil
 }
 
 func (c *exampleTestClient) UpdateMessageWithMetadata(ctx context.Context, channelID string, timestamp string, blocks []slack.Block, metadata slack.SlackMetadata) (string, string, string, error) {
-	c.messagesUpdated <- updatedMessage{
+	c.messagesUpdated = append(c.messagesUpdated, updatedMessage{
 		sentMessage: sentMessage{
 			channelID: channelID,
 			blocks:    blocks,
 			metadata:  metadata,
 		},
 		timestamp: timestamp,
-	}
+	})
 	return "", timestamp, "", nil
 }

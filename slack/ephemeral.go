@@ -24,6 +24,6 @@ func (es *ephemeralSender) finishEvent(req request) error {
 	return nil
 }
 
-func (es *ephemeralSender) populateEvent(p eventPopulation) error {
+func (es *ephemeralSender) populateEvent(p eventPopulation, depth int) error {
 	return nil
 }

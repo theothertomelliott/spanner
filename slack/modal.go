@@ -119,13 +119,13 @@ func (m *modal) finishEvent(req request) error {
 	return nil
 }
 
-func (m *modal) populateEvent(p eventPopulation) error {
+func (m *modal) populateEvent(p eventPopulation, depth int) error {
 	if m.Blocks == nil {
 		m.Blocks = &Blocks{}
 	}
 
 	if m.Submission != nil {
-		return m.Submission.populateEvent(p)
+		return m.Submission.populateEvent(p, depth+1)
 	}
 
 	m.ViewExternalID = p.interactionCallbackEvent.View.ExternalID
@@ -186,12 +186,12 @@ func (m *modalSubmission) finishEvent(req request) error {
 	return nil
 }
 
-func (m *modalSubmission) populateEvent(p eventPopulation) error {
+func (m *modalSubmission) populateEvent(p eventPopulation, depth int) error {
 	if m.NextModal != nil {
-		return m.NextModal.populateEvent(p)
+		return m.NextModal.populateEvent(p, depth+1)
 	}
 	if m.ephemeralSender.Text != nil {
-		return m.ephemeralSender.populateEvent(p)
+		return m.ephemeralSender.populateEvent(p, depth+1)
 	}
 
 	return nil

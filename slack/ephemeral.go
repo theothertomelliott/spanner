@@ -1,10 +1,14 @@
 package slack
 
 import (
+	"context"
+
 	"github.com/theothertomelliott/spanner"
 )
 
 var _ spanner.EphemeralSender = &ephemeralSender{}
+var _ eventPopulator = &ephemeralSender{}
+var _ eventFinisher = &ephemeralSender{}
 
 type ephemeralSender struct {
 	Text *string `json:"ephemeral"`
@@ -15,7 +19,7 @@ func (es *ephemeralSender) SendEphemeralMessage(text string) {
 	es.Text = &text
 }
 
-func (es *ephemeralSender) finishEvent(req request) error {
+func (es *ephemeralSender) finishEvent(ctx context.Context, req request) error {
 	payload := map[string]interface{}{
 		"text": es.Text,
 	}
@@ -24,6 +28,6 @@ func (es *ephemeralSender) finishEvent(req request) error {
 	return nil
 }
 
-func (es *ephemeralSender) populateEvent(p eventPopulation, depth int) error {
+func (es *ephemeralSender) populateEvent(ctx context.Context, p eventPopulation, depth int) error {
 	return nil
 }

@@ -59,7 +59,7 @@ func (r *testClient) CreateApp() spanner.App {
 
 // PostEventFunc provides a spanner.PostEventFunc to use with a test app
 // This is automatically applied by the CreateApp function
-func (r *testClient) PostEventFunc() {
+func (r *testClient) PostEventFunc(ctx context.Context) {
 	r.postEvent <- struct{}{}
 }
 

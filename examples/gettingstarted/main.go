@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -24,7 +25,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = app.Run(func(ev spanner.Event) error {
+	err = app.Run(func(ctx context.Context, ev spanner.Event) error {
 		if msg := ev.ReceiveMessage(); msg != nil && msg.Text() == "hello" {
 
 			reply := ev.SendMessage(msg.Channel().ID())

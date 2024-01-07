@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -24,7 +25,7 @@ func main() {
 	}
 
 	fmt.Println("Starting app")
-	err = app.Run(func(ev spanner.Event) error {
+	err = app.Run(func(ctx context.Context, ev spanner.Event) error {
 		if ev.ReceiveConnected() {
 			log.Println("Connected - will do some setup here")
 			ev.JoinChannel("C062778EYRZ") // Test channel from Slack workspace used for QA
@@ -38,7 +39,7 @@ func main() {
 		if msg := ev.ReceiveMessage(); msg != nil && msg.Text() == "hello" {
 
 			reply := ev.SendMessage(msg.Channel().ID())
-			reply.Markdown(fmt.Sprintf("Hello, *%v*", msg.User().RealName()))
+			reply.Markdown(fmt.Sprintf("Hello, *%v*", msg.User().RealName(ctx)))
 
 			reply.PlainText("Here are examples of supported block UI elements")
 
@@ -66,7 +67,7 @@ func main() {
 			if reply.Button("Done") {
 				summary := ev.SendMessage(msg.Channel().ID())
 				summary.PlainText("Here's a summary of what you entered")
-				summary.PlainText(fmt.Sprintf("Original poster: %v", msg.User().RealName()))
+				summary.PlainText(fmt.Sprintf("Original poster: %v", msg.User().RealName(ctx)))
 				summary.PlainText(fmt.Sprintf("Single line: %q", singleLine))
 				summary.PlainText(fmt.Sprintf("Multi line: %q", multiLine))
 				summary.PlainText(fmt.Sprintf("You chose %q", letter))

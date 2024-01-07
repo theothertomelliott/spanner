@@ -1,6 +1,7 @@
 package slack
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -15,7 +16,7 @@ func TestHandlerIsCalledForEachEvent(t *testing.T) {
 	results := make(chan struct{}, 2)
 
 	go func() {
-		testApp.Run(func(evt spanner.Event) error {
+		testApp.Run(func(ctx context.Context, evt spanner.Event) error {
 			results <- struct{}{}
 			return nil
 		})
@@ -27,7 +28,7 @@ func TestHandlerIsCalledForEachEvent(t *testing.T) {
 			client.SendEventToApp(socketmode.Event{})
 			eventType = "slack"
 		} else {
-			testApp.SendCustom(NewCustomEvent(map[string]interface{}{}))
+			testApp.SendCustom(context.Background(), NewCustomEvent(map[string]interface{}{}))
 			eventType = "custom"
 		}
 		select {

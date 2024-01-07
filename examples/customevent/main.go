@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -23,11 +24,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	_ = app.SendCustom(slack.NewCustomEvent(map[string]interface{}{
+	_ = app.SendCustom(context.Background(), slack.NewCustomEvent(map[string]interface{}{
 		"field1": "value1",
 	}))
 
-	err = app.Run(func(ev spanner.Event) error {
+	err = app.Run(func(ctx context.Context, ev spanner.Event) error {
 		if custom := ev.ReceiveCustomEvent(); custom != nil {
 			log.Printf("Custom body: %+v", custom.Body())
 

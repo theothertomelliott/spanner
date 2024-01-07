@@ -10,7 +10,16 @@ import (
 	"github.com/theothertomelliott/spanner"
 )
 
+type eventPopulator interface {
+	populateEvent(ctx context.Context, p eventPopulation, depth int) error
+}
+
+type eventFinisher interface {
+	finishEvent(ctx context.Context, req request) error
+}
+
 var _ spanner.Event = &event{}
+var _ eventFinisher = &event{}
 
 type event struct {
 	hash string
@@ -79,25 +88,25 @@ func (e *event) SendMessage(channelID string) spanner.Message {
 	return e.state.SendMessage(channelID)
 }
 
-func (e *event) finishEvent(req request) error {
+func (e *event) finishEvent(ctx context.Context, req request) error {
 	for _, channel := range e.channelsToJoin {
-		err := e.doJoinChannel(channel, req)
+		err := e.doJoinChannel(ctx, channel, req)
 		if err != nil {
 			return err
 		}
 	}
 
-	err := e.state.sendMessages(req)
+	err := e.state.finishEvent(ctx, req)
 	if err != nil {
 		return err
 	}
 
 	if message := e.state.Message; message != nil {
-		return message.finishEvent(req)
+		return message.finishEvent(ctx, req)
 	}
 
 	if slashCommand := e.state.SlashCommand; slashCommand != nil {
-		return slashCommand.finishEvent(req)
+		return slashCommand.finishEvent(ctx, req)
 	}
 
 	// Handle the event if nothing else does
@@ -107,8 +116,8 @@ func (e *event) finishEvent(req request) error {
 	return nil
 }
 
-func (e *event) doJoinChannel(channel string, req request) error {
-	_, _, _, err := req.client.JoinConversationContext(context.TODO(), channel)
+func (e *event) doJoinChannel(ctx context.Context, channel string, req request) error {
+	_, _, _, err := req.client.JoinConversationContext(ctx, channel)
 	if err != nil {
 		return err
 	}
@@ -122,7 +131,7 @@ type eventPopulation struct {
 	interactionDepth         int
 }
 
-func parseCombinedEvent(client socketClient, ce combinedEvent) *event {
+func parseCombinedEvent(ctx context.Context, client socketClient, ce combinedEvent) *event {
 	out := &event{
 		state: eventState{
 			MessageSender: &MessageSender{},
@@ -243,6 +252,7 @@ func parseCombinedEvent(client socketClient, ce combinedEvent) *event {
 			}
 			if out.state.SlashCommand != nil {
 				out.state.SlashCommand.populateEvent(
+					ctx,
 					eventPopulation{
 						interactionCallbackEvent: interactionCallbackEvent,
 						interaction:              interactionCallbackEvent.Type,
@@ -265,13 +275,13 @@ func parseCombinedEvent(client socketClient, ce combinedEvent) *event {
 			}
 
 			if out.state.MessageSender != nil {
-				err := out.state.MessageSender.populateEvent(p, 0)
+				err := out.state.MessageSender.populateEvent(ctx, p, 0)
 				if err != nil {
 					panic(err)
 				}
 			}
 			if out.state.Message != nil {
-				err := out.state.Message.populateEvent(p, 0)
+				err := out.state.Message.populateEvent(ctx, p, 0)
 				if err != nil {
 					panic(err)
 				}

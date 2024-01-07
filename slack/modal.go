@@ -9,6 +9,8 @@ import (
 )
 
 var _ spanner.Modal = &modal{}
+var _ eventPopulator = &modal{}
+var _ eventFinisher = &modal{}
 
 type modal struct {
 	*Blocks `json:"blocks"` // This ensures that the value is not nil
@@ -79,11 +81,11 @@ func (m *modal) CloseButton(text string) bool {
 	return m.update == closed
 }
 
-func (m *modal) finishEvent(req request) error {
+func (m *modal) finishEvent(ctx context.Context, req request) error {
 	var err error
 
 	if m.Submission != nil {
-		return m.Submission.finishEvent(req)
+		return m.Submission.finishEvent(ctx, req)
 	}
 
 	modal := m.render()
@@ -94,7 +96,7 @@ func (m *modal) finishEvent(req request) error {
 	switch update := m.update; update {
 	case created:
 		if !m.HasParent {
-			_, err = req.client.OpenViewContext(context.TODO(), m.triggerID, *modal)
+			_, err = req.client.OpenViewContext(ctx, m.triggerID, *modal)
 			if err != nil {
 				return fmt.Errorf("opening view: %w", renderSlackError(err))
 			}
@@ -103,7 +105,7 @@ func (m *modal) finishEvent(req request) error {
 		}
 	case action:
 		_, err := req.client.UpdateViewContext(
-			context.TODO(),
+			ctx,
 			*modal,
 			m.ViewExternalID,
 			req.hash,
@@ -119,13 +121,13 @@ func (m *modal) finishEvent(req request) error {
 	return nil
 }
 
-func (m *modal) populateEvent(p eventPopulation, depth int) error {
+func (m *modal) populateEvent(ctx context.Context, p eventPopulation, depth int) error {
 	if m.Blocks == nil {
 		m.Blocks = &Blocks{}
 	}
 
 	if m.Submission != nil {
-		return m.Submission.populateEvent(p, depth+1)
+		return m.Submission.populateEvent(ctx, p, depth+1)
 	}
 
 	m.ViewExternalID = p.interactionCallbackEvent.View.ExternalID
@@ -149,6 +151,8 @@ func (m *modal) populateEvent(p eventPopulation, depth int) error {
 }
 
 var _ spanner.ModalSubmission = &modalSubmission{}
+var _ eventPopulator = &modalSubmission{}
+var _ eventFinisher = &modalSubmission{}
 
 type modalSubmission struct {
 	NextModal *modal `json:"next_modal"`
@@ -171,12 +175,12 @@ func (m *modalSubmission) PushModal(title string) spanner.Modal {
 	return m.NextModal
 }
 
-func (m *modalSubmission) finishEvent(req request) error {
+func (m *modalSubmission) finishEvent(ctx context.Context, req request) error {
 	if m.NextModal != nil {
-		return m.NextModal.finishEvent(req)
+		return m.NextModal.finishEvent(ctx, req)
 	}
 	if m.ephemeralSender.Text != nil {
-		return m.ephemeralSender.finishEvent(req)
+		return m.ephemeralSender.finishEvent(ctx, req)
 	}
 
 	var payload interface{} = map[string]interface{}{}
@@ -186,12 +190,12 @@ func (m *modalSubmission) finishEvent(req request) error {
 	return nil
 }
 
-func (m *modalSubmission) populateEvent(p eventPopulation, depth int) error {
+func (m *modalSubmission) populateEvent(ctx context.Context, p eventPopulation, depth int) error {
 	if m.NextModal != nil {
-		return m.NextModal.populateEvent(p, depth+1)
+		return m.NextModal.populateEvent(ctx, p, depth+1)
 	}
 	if m.ephemeralSender.Text != nil {
-		return m.ephemeralSender.populateEvent(p, depth+1)
+		return m.ephemeralSender.populateEvent(ctx, p, depth+1)
 	}
 
 	return nil

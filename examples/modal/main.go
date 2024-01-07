@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -30,7 +31,7 @@ func main() {
 	}
 }
 
-func handler(ev spanner.Event) error {
+func handler(ctx context.Context, ev spanner.Event) error {
 	if testSlash := ev.ReceiveSlashCommand("/testslash"); testSlash != nil {
 		fmt.Printf("Handling /testslash from user %v in channel %v\n", testSlash.User(), testSlash.Channel())
 		modal := testSlash.Modal("My Modal")
@@ -87,7 +88,7 @@ func handler(ev spanner.Event) error {
 
 				if submit := modal2.SubmitButton("Submit"); submit != nil {
 					msg := ev.SendMessage(testSlash.Channel().ID())
-					msg.Markdown(fmt.Sprintf("Thank you for completing our modal view <@%v>", testSlash.User().Name()))
+					msg.Markdown(fmt.Sprintf("Thank you for completing our modal view <@%v>", testSlash.User().Name(ctx)))
 					msg.PlainText(fmt.Sprintf("Your number was %v", finalNumber))
 					msg.PlainText(fmt.Sprintf("You entered %v, %q and %q in the second view", dropdown, singleLine, multiLine))
 				}

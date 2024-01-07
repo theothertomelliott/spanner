@@ -1,6 +1,10 @@
 package slack
 
-import "github.com/theothertomelliott/spanner"
+import (
+	"context"
+
+	"github.com/theothertomelliott/spanner"
+)
 
 var _ spanner.CustomEvent = &customEvent{}
 
@@ -11,6 +15,7 @@ func NewCustomEvent(body map[string]interface{}) spanner.CustomEvent {
 }
 
 type customEvent struct {
+	ctx  context.Context
 	body map[string]interface{}
 }
 

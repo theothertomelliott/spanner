@@ -1,6 +1,8 @@
 package spanner
 
+import "context"
+
 type Channel interface {
 	ID() string
-	Name() string
+	Name(context.Context) string
 }

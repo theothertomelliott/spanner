@@ -18,27 +18,27 @@ func (u *user) ID() string {
 	return u.IDInternal
 }
 
-func (u *user) Name() string {
-	u.load()
+func (u *user) Name(ctx context.Context) string {
+	u.load(ctx)
 	return u.NameInternal
 }
 
-func (u *user) RealName() string {
-	u.load()
+func (u *user) RealName(ctx context.Context) string {
+	u.load(ctx)
 	return u.RealNameInternal
 }
 
-func (u *user) Email() string {
-	u.load()
+func (u *user) Email(ctx context.Context) string {
+	u.load(ctx)
 	return u.EmailInternal
 }
 
-func (u *user) load() {
+func (u *user) load(ctx context.Context) {
 	if u.Loaded {
 		return
 	}
 
-	user, err := u.client.GetUserInfoContext(context.TODO(), u.IDInternal)
+	user, err := u.client.GetUserInfoContext(ctx, u.IDInternal)
 	if err != nil {
 		// TODO: Hoist up this error somehow
 		panic(err)

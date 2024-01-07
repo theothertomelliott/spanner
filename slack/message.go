@@ -9,6 +9,8 @@ import (
 )
 
 var _ spanner.ReceivedMessage = &receivedMessage{}
+var _ eventPopulator = &receivedMessage{}
+var _ eventFinisher = &receivedMessage{}
 
 type receivedMessage struct {
 	eventMetadata
@@ -16,7 +18,7 @@ type receivedMessage struct {
 	TextInternal string `json:"text"`
 }
 
-func (m *receivedMessage) finishEvent(req request) error {
+func (m *receivedMessage) finishEvent(ctx context.Context, req request) error {
 	// Placeholder for actions specific to received messages
 
 	var payload interface{} = map[string]interface{}{}
@@ -25,12 +27,14 @@ func (m *receivedMessage) finishEvent(req request) error {
 	return nil
 }
 
-func (m *receivedMessage) populateEvent(p eventPopulation, depth int) error {
+func (m *receivedMessage) populateEvent(ctx context.Context, p eventPopulation, depth int) error {
 	// Placeholder for actions specific to received messages
 	return nil
 }
 
 var _ spanner.Message = &message{}
+var _ eventPopulator = &message{}
+var _ eventFinisher = &message{}
 
 type message struct {
 	*Blocks `json:"blocks"` // This ensures that the value is not nil
@@ -48,10 +52,10 @@ func (m *message) Channel(channelID string) {
 	m.ChannelID = channelID
 }
 
-func (m *message) finishEvent(req request) error {
+func (m *message) finishEvent(ctx context.Context, req request) error {
 	if m.unsent {
 		_, _, _, err := req.client.SendMessageWithMetadata(
-			context.TODO(),
+			ctx,
 			m.ChannelID,
 			m.blocks,
 			slack.SlackMetadata{
@@ -68,7 +72,7 @@ func (m *message) finishEvent(req request) error {
 
 	} else if m.MessageIndex == m.currentMessageIndex && m.EventDepth == m.currentEventDepth {
 		_, _, _, err := req.client.UpdateMessageWithMetadata(
-			context.TODO(),
+			ctx,
 			m.ChannelID,
 			m.actionMessageTS,
 			m.blocks,
@@ -88,13 +92,16 @@ func (m *message) finishEvent(req request) error {
 	return nil
 }
 
-func (m *message) populateEvent(p eventPopulation, depth int) error {
+func (m *message) populateEvent(ctx context.Context, p eventPopulation, depth int) error {
 	m.BlockStates = blockActionToState(p)
 	m.actionMessageTS = p.interactionCallbackEvent.Message.Timestamp
 	m.currentEventDepth = p.interactionDepth
 	m.currentMessageIndex = p.messageIndex
 	return nil
 }
+
+var _ eventPopulator = &MessageSender{}
+var _ eventFinisher = &MessageSender{}
 
 type MessageSender struct {
 	readMessageIndex int        // track offset of messages so we don't create extra when processing actions
@@ -127,9 +134,9 @@ func (m *MessageSender) SendMessage(channelID string) spanner.Message {
 	return message
 }
 
-func (m *MessageSender) sendMessages(req request) error {
+func (m *MessageSender) finishEvent(ctx context.Context, req request) error {
 	for _, message := range m.Messages {
-		err := message.finishEvent(req)
+		err := message.finishEvent(ctx, req)
 		if err != nil {
 			return err
 		}
@@ -137,11 +144,11 @@ func (m *MessageSender) sendMessages(req request) error {
 	return nil
 }
 
-func (m *MessageSender) populateEvent(p eventPopulation, depth int) error {
+func (m *MessageSender) populateEvent(ctx context.Context, p eventPopulation, depth int) error {
 	m.EventDepth = depth
 	for _, message := range m.Messages {
 		if message.MessageIndex == p.messageIndex {
-			return message.populateEvent(p, depth+1)
+			return message.populateEvent(ctx, p, depth+1)
 		}
 	}
 	return nil

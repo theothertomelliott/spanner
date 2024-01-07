@@ -1,6 +1,7 @@
 package slack
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -77,7 +78,7 @@ func TestGettingStarted(t *testing.T) {
 }
 
 // handler should be kept in sync with README.md and examples/gettingstarted/main.go
-func handler(ev spanner.Event) error {
+func handler(ctx context.Context, ev spanner.Event) error {
 	if msg := ev.ReceiveMessage(); msg != nil && msg.Text() == "hello" {
 		reply := ev.SendMessage(msg.Channel().ID())
 		reply.PlainText(fmt.Sprintf("Hello to you too: %v", msg.User()))

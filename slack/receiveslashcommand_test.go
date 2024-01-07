@@ -1,6 +1,7 @@
 package slack
 
 import (
+	"context"
 	"testing"
 
 	"github.com/slack-go/slack"
@@ -21,7 +22,7 @@ func TestReceiveSlashCommand(t *testing.T) {
 		slashCommand,
 	))
 
-	testApp.Run(func(evt spanner.Event) error {
+	testApp.Run(func(ctx context.Context, evt spanner.Event) error {
 		defer func() {
 			// Stop the client
 			close(client.stop)

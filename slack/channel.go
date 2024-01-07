@@ -22,17 +22,17 @@ func (c *channel) ID() string {
 	return c.IDInternal
 }
 
-func (c *channel) Name() string {
-	c.load()
+func (c *channel) Name(ctx context.Context) string {
+	c.load(ctx)
 	return c.NameInternal
 }
 
-func (c *channel) load() {
+func (c *channel) load(ctx context.Context) {
 	if c.Loaded {
 		return
 	}
 
-	ch, err := c.client.GetConversationInfoContext(context.TODO(), &slack.GetConversationInfoInput{
+	ch, err := c.client.GetConversationInfoContext(ctx, &slack.GetConversationInfoInput{
 		ChannelID: c.IDInternal,
 	})
 	if err != nil {

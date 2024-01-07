@@ -109,7 +109,7 @@ func (s *app) Run(handler spanner.EventHandlerFunc) error {
 
 	done := make(chan error)
 	go func() {
-		err := s.client.RunContext(context.TODO())
+		err := s.client.RunContext(context.Background())
 		if err != nil {
 			done <- err
 		}
@@ -119,7 +119,11 @@ func (s *app) Run(handler spanner.EventHandlerFunc) error {
 	for {
 		select {
 		case ce := <-s.combinedEvent:
-			s.handleEvent(handler, ce)
+			ctx := context.Background()
+			if ce.customEvent != nil && ce.customEvent.ctx != nil {
+				ctx = ce.customEvent.ctx
+			}
+			s.handleEvent(ctx, handler, ce)
 		case err := <-done:
 			return err
 		}
@@ -130,9 +134,9 @@ func (s *app) SetPostEventFunc(f spanner.PostEventFunc) {
 	s.postEventFunc = f
 }
 
-func (s *app) handleEvent(handler spanner.EventHandlerFunc, ce combinedEvent) {
-	es := parseCombinedEvent(s.client, ce)
-	err := handler(es)
+func (s *app) handleEvent(ctx context.Context, handler spanner.EventHandlerFunc, ce combinedEvent) {
+	es := parseCombinedEvent(ctx, s.client, ce)
+	err := handler(ctx, es)
 	if err != nil {
 		return // Move on without acknowledging, will force a repeat
 	}
@@ -142,7 +146,7 @@ func (s *app) handleEvent(handler spanner.EventHandlerFunc, ce combinedEvent) {
 		req = *evt.Request
 	}
 
-	err = es.finishEvent(request{
+	err = es.finishEvent(ctx, request{
 		req:    req,
 		es:     es,
 		hash:   es.hash,
@@ -154,12 +158,13 @@ func (s *app) handleEvent(handler spanner.EventHandlerFunc, ce combinedEvent) {
 	}
 
 	if s.postEventFunc != nil {
-		s.postEventFunc()
+		s.postEventFunc(ctx)
 	}
 }
 
-func (s *app) SendCustom(c spanner.CustomEvent) error {
+func (s *app) SendCustom(ctx context.Context, c spanner.CustomEvent) error {
 	s.customEvents <- &customEvent{
+		ctx:  ctx,
 		body: c.Body(),
 	}
 	return nil

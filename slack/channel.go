@@ -41,3 +41,28 @@ func (c *channel) load(ctx context.Context) {
 	c.Loaded = true
 	c.NameInternal = ch.Name
 }
+
+var _ action = &joinChannelAction{}
+
+type joinChannelAction struct {
+	channelID string
+}
+
+// Data implements action.
+func (*joinChannelAction) Data() interface{} {
+	panic("unimplemented")
+}
+
+// Type implements action.
+func (*joinChannelAction) Type() string {
+	return "join_channel"
+}
+
+// exec implements action.
+func (a *joinChannelAction) exec(ctx context.Context, req request) (interface{}, error) {
+	_, _, _, err := req.client.JoinConversationContext(ctx, a.channelID)
+	if err != nil {
+		return nil, err
+	}
+	return nil, nil
+}

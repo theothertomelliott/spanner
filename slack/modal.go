@@ -10,9 +10,11 @@ import (
 
 var _ spanner.Modal = &modal{}
 var _ eventPopulator = &modal{}
-var _ eventFinisher = &modal{}
+var _ action = &modal{}
 
 type modal struct {
+	actionQueue *actionQueue
+
 	*Blocks `json:"blocks"` // This ensures that the value is not nil
 
 	Title      string           `json:"title"`
@@ -34,10 +36,10 @@ type modal struct {
 type updateType int
 
 const (
-	created updateType = iota
-	action
-	submitted
-	closed
+	modalUpdateCreated updateType = iota
+	modalUpdateAction
+	modalUpdateSubmitted
+	modalUpdateClosed
 )
 
 func (m *modal) render() *slack.ModalViewRequest {
@@ -78,15 +80,11 @@ func (m *modal) SubmitButton(text string) spanner.ModalSubmission {
 
 func (m *modal) CloseButton(text string) bool {
 	m.closeText = &text
-	return m.update == closed
+	return m.update == modalUpdateClosed
 }
 
-func (m *modal) finishEvent(ctx context.Context, req request) error {
+func (m *modal) exec(ctx context.Context, req request) (interface{}, error) {
 	var err error
-
-	if m.Submission != nil {
-		return m.Submission.finishEvent(ctx, req)
-	}
 
 	modal := m.render()
 	modal.PrivateMetadata = string(req.Metadata())
@@ -94,16 +92,16 @@ func (m *modal) finishEvent(ctx context.Context, req request) error {
 	var payload interface{} = map[string]interface{}{}
 
 	switch update := m.update; update {
-	case created:
+	case modalUpdateCreated:
 		if !m.HasParent {
 			_, err = req.client.OpenViewContext(ctx, m.triggerID, *modal)
 			if err != nil {
-				return fmt.Errorf("opening view: %w", renderSlackError(err))
+				return nil, fmt.Errorf("opening view: %w", renderSlackError(err))
 			}
 		} else {
 			payload = slack.NewPushViewSubmissionResponse(modal)
 		}
-	case action:
+	case modalUpdateAction:
 		_, err := req.client.UpdateViewContext(
 			ctx,
 			*modal,
@@ -112,13 +110,11 @@ func (m *modal) finishEvent(ctx context.Context, req request) error {
 			m.ViewID,
 		)
 		if err != nil {
-			return fmt.Errorf("updating view: %w", renderSlackError(err))
+			return nil, fmt.Errorf("updating view: %w", renderSlackError(err))
 		}
 	}
 
-	req.client.Ack(req.req, payload)
-
-	return nil
+	return payload, nil
 }
 
 func (m *modal) populateEvent(ctx context.Context, p eventPopulation, depth int) error {
@@ -130,34 +126,47 @@ func (m *modal) populateEvent(ctx context.Context, p eventPopulation, depth int)
 		return m.Submission.populateEvent(ctx, p, depth+1)
 	}
 
+	m.actionQueue = p.actionQueue
+
 	m.ViewExternalID = p.interactionCallbackEvent.View.ExternalID
 	m.ViewID = p.interactionCallbackEvent.View.ID
 	m.BlockStates = blockActionToState(p)
 
 	if p.interaction == slack.InteractionTypeBlockActions {
-		m.update = action
+		m.update = modalUpdateAction
+		m.actionQueue.enqueue(m)
 	}
 	if p.interaction == slack.InteractionTypeViewSubmission {
 		m.Submission = &modalSubmission{
-			parent: m,
+			actionQueue: p.actionQueue,
+			parent:      m,
 		}
-		m.update = submitted
+		m.update = modalUpdateSubmitted
+		m.actionQueue.enqueue(m.Submission)
 	}
 	if p.interaction == slack.InteractionTypeViewClosed {
-		m.update = closed
+		m.update = modalUpdateClosed
 	}
 
 	return nil
 }
 
+func (*modal) Type() string {
+	return "modal"
+}
+
+func (*modal) Data() interface{} {
+	panic("unimplemented")
+}
+
 var _ spanner.ModalSubmission = &modalSubmission{}
 var _ eventPopulator = &modalSubmission{}
-var _ eventFinisher = &modalSubmission{}
 
 type modalSubmission struct {
+	actionQueue *actionQueue
+
 	NextModal *modal `json:"next_modal"`
 
-	ephemeralSender
 	parent *modal
 }
 
@@ -172,31 +181,28 @@ func (m *modalSubmission) PushModal(title string) spanner.Modal {
 		Title:     title,
 		HasParent: true,
 	}
+	m.actionQueue.enqueue(m.NextModal)
 	return m.NextModal
 }
 
-func (m *modalSubmission) finishEvent(ctx context.Context, req request) error {
-	if m.NextModal != nil {
-		return m.NextModal.finishEvent(ctx, req)
-	}
-	if m.ephemeralSender.Text != nil {
-		return m.ephemeralSender.finishEvent(ctx, req)
-	}
-
+func (m *modalSubmission) exec(ctx context.Context, req request) (interface{}, error) {
 	var payload interface{} = map[string]interface{}{}
 	payload = slack.NewClearViewSubmissionResponse()
-	req.client.Ack(req.req, payload)
-
-	return nil
+	return payload, nil
 }
 
 func (m *modalSubmission) populateEvent(ctx context.Context, p eventPopulation, depth int) error {
 	if m.NextModal != nil {
 		return m.NextModal.populateEvent(ctx, p, depth+1)
 	}
-	if m.ephemeralSender.Text != nil {
-		return m.ephemeralSender.populateEvent(ctx, p, depth+1)
-	}
 
 	return nil
+}
+
+func (*modalSubmission) Type() string {
+	return "modal-submission"
+}
+
+func (*modalSubmission) Data() interface{} {
+	panic("unimplemented")
 }

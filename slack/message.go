@@ -10,21 +10,11 @@ import (
 
 var _ spanner.ReceivedMessage = &receivedMessage{}
 var _ eventPopulator = &receivedMessage{}
-var _ eventFinisher = &receivedMessage{}
 
 type receivedMessage struct {
 	eventMetadata
 
 	TextInternal string `json:"text"`
-}
-
-func (m *receivedMessage) finishEvent(ctx context.Context, req request) error {
-	// Placeholder for actions specific to received messages
-
-	var payload interface{} = map[string]interface{}{}
-	req.client.Ack(req.req, payload)
-
-	return nil
 }
 
 func (m *receivedMessage) populateEvent(ctx context.Context, p eventPopulation, depth int) error {
@@ -34,7 +24,7 @@ func (m *receivedMessage) populateEvent(ctx context.Context, p eventPopulation, 
 
 var _ spanner.Message = &message{}
 var _ eventPopulator = &message{}
-var _ eventFinisher = &message{}
+var _ action = &message{}
 
 type message struct {
 	*Blocks `json:"blocks"` // This ensures that the value is not nil
@@ -48,11 +38,19 @@ type message struct {
 	unsent              bool
 }
 
+func (m *message) Type() string {
+	return "message"
+}
+
+func (m *message) Data() interface{} {
+	panic("unimplemented")
+}
+
 func (m *message) Channel(channelID string) {
 	m.ChannelID = channelID
 }
 
-func (m *message) finishEvent(ctx context.Context, req request) error {
+func (m *message) exec(ctx context.Context, req request) (interface{}, error) {
 	if m.unsent {
 		_, _, _, err := req.client.SendMessageWithMetadata(
 			ctx,
@@ -67,7 +65,7 @@ func (m *message) finishEvent(ctx context.Context, req request) error {
 				},
 			})
 		if err != nil {
-			return fmt.Errorf("sending message: %w", renderSlackError(err))
+			return nil, fmt.Errorf("sending message: %w", renderSlackError(err))
 		}
 
 	} else if m.MessageIndex == m.currentMessageIndex && m.EventDepth == m.currentEventDepth {
@@ -85,11 +83,11 @@ func (m *message) finishEvent(ctx context.Context, req request) error {
 				},
 			})
 		if err != nil {
-			return fmt.Errorf("updating message: %w", renderSlackError(err))
+			return nil, fmt.Errorf("updating message: %w", renderSlackError(err))
 		}
 	}
 
-	return nil
+	return nil, nil
 }
 
 func (m *message) populateEvent(ctx context.Context, p eventPopulation, depth int) error {
@@ -101,9 +99,10 @@ func (m *message) populateEvent(ctx context.Context, p eventPopulation, depth in
 }
 
 var _ eventPopulator = &MessageSender{}
-var _ eventFinisher = &MessageSender{}
 
 type MessageSender struct {
+	actionQueue *actionQueue
+
 	readMessageIndex int        // track offset of messages so we don't create extra when processing actions
 	Messages         []*message `json:"messages"`
 	EventDepth       int        `json:"event_depth"`
@@ -131,23 +130,17 @@ func (m *MessageSender) SendMessage(channelID string) spanner.Message {
 	}
 	m.Messages = append(m.Messages, message)
 
-	return message
-}
+	m.actionQueue.enqueue(message)
 
-func (m *MessageSender) finishEvent(ctx context.Context, req request) error {
-	for _, message := range m.Messages {
-		err := message.finishEvent(ctx, req)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return message
 }
 
 func (m *MessageSender) populateEvent(ctx context.Context, p eventPopulation, depth int) error {
 	m.EventDepth = depth
 	for _, message := range m.Messages {
 		if message.MessageIndex == p.messageIndex {
+			m.actionQueue = p.actionQueue
+			p.actionQueue.enqueue(message)
 			return message.populateEvent(ctx, p, depth+1)
 		}
 	}

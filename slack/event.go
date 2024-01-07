@@ -3,6 +3,8 @@ package slack
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"log"
 
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
@@ -14,19 +16,12 @@ type eventPopulator interface {
 	populateEvent(ctx context.Context, p eventPopulation, depth int) error
 }
 
-type eventFinisher interface {
-	finishEvent(ctx context.Context, req request) error
-}
-
 var _ spanner.Event = &event{}
-var _ eventFinisher = &event{}
 
 type event struct {
 	hash string
 
 	state eventState
-
-	channelsToJoin []string
 }
 
 type eventMetadata struct {
@@ -43,6 +38,8 @@ func (e eventMetadata) Channel() spanner.Channel {
 }
 
 type eventState struct {
+	actionQueue *actionQueue
+
 	*MessageSender `json:"ms"`
 
 	Metadata     eventMetadata    `json:"metadata"`
@@ -57,7 +54,9 @@ func (e *event) ReceiveConnected() bool {
 }
 
 func (e *event) JoinChannel(channelID string) {
-	e.channelsToJoin = append(e.channelsToJoin, channelID)
+	e.state.actionQueue.enqueue(&joinChannelAction{
+		channelID: channelID,
+	})
 }
 
 func (e *event) ReceiveCustomEvent() spanner.CustomEvent {
@@ -89,42 +88,33 @@ func (e *event) SendMessage(channelID string) spanner.Message {
 }
 
 func (e *event) finishEvent(ctx context.Context, req request) error {
-	for _, channel := range e.channelsToJoin {
-		err := e.doJoinChannel(ctx, channel, req)
+	var payload interface{}
+	for _, a := range e.state.actionQueue.actions {
+		newPayload, err := a.exec(ctx, req)
 		if err != nil {
-			return err
+			return fmt.Errorf("executing action: %w", err)
+		}
+		if newPayload != nil {
+			if payload != nil {
+				// TODO: Make this log configurable
+				log.Print("received multiple payloads, will use the last one one")
+			}
+			payload = newPayload
 		}
 	}
 
-	err := e.state.finishEvent(ctx, req)
-	if err != nil {
-		return err
+	// Acknowledge the event
+	if payload == nil {
+		payload = map[string]interface{}{}
 	}
-
-	if message := e.state.Message; message != nil {
-		return message.finishEvent(ctx, req)
-	}
-
-	if slashCommand := e.state.SlashCommand; slashCommand != nil {
-		return slashCommand.finishEvent(ctx, req)
-	}
-
-	// Handle the event if nothing else does
-	var payload interface{} = map[string]interface{}{}
 	req.client.Ack(req.req, payload)
 
 	return nil
 }
 
-func (e *event) doJoinChannel(ctx context.Context, channel string, req request) error {
-	_, _, _, err := req.client.JoinConversationContext(ctx, channel)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 type eventPopulation struct {
+	actionQueue *actionQueue
+
 	interactionCallbackEvent slack.InteractionCallback
 	interaction              slack.InteractionType
 	messageIndex             string
@@ -132,9 +122,13 @@ type eventPopulation struct {
 }
 
 func parseCombinedEvent(ctx context.Context, client socketClient, ce combinedEvent) *event {
+	q := &actionQueue{}
 	out := &event{
 		state: eventState{
-			MessageSender: &MessageSender{},
+			actionQueue: q,
+			MessageSender: &MessageSender{
+				actionQueue: q,
+			},
 		},
 	}
 
@@ -201,6 +195,10 @@ func parseCombinedEvent(ctx context.Context, client socketClient, ce combinedEve
 		}
 
 		out.state.SlashCommand = &slashCommand{
+			actionQueue: out.state.actionQueue,
+			ephemeralSender: ephemeralSender{
+				actionQueue: out.state.actionQueue,
+			},
 			eventMetadata: out.state.Metadata,
 			TriggerID:     cmd.TriggerID,
 			Command:       cmd.Command,
@@ -254,6 +252,7 @@ func parseCombinedEvent(ctx context.Context, client socketClient, ce combinedEve
 				out.state.SlashCommand.populateEvent(
 					ctx,
 					eventPopulation{
+						actionQueue:              out.state.actionQueue,
 						interactionCallbackEvent: interactionCallbackEvent,
 						interaction:              interactionCallbackEvent.Type,
 						messageIndex:             "",
@@ -269,6 +268,7 @@ func parseCombinedEvent(ctx context.Context, client socketClient, ce combinedEve
 				panic(err)
 			}
 			p := eventPopulation{
+				actionQueue:              out.state.actionQueue,
 				interactionCallbackEvent: interactionCallbackEvent,
 				interaction:              interactionCallbackEvent.Type,
 				messageIndex:             messageIndex,

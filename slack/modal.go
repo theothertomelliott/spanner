@@ -155,8 +155,15 @@ func (*modal) Type() string {
 	return "modal"
 }
 
-func (*modal) Data() interface{} {
-	panic("unimplemented")
+func (m *modal) Data() interface{} {
+	// TODO: This should be more well-defined
+	return map[string]interface{}{
+		"title":            m.Title,
+		"blocks":           m.blocks,
+		"channel_id":       m.ChannelID,
+		"view_id":          m.ViewID,
+		"view_id_external": m.ViewExternalID,
+	}
 }
 
 var _ spanner.ModalSubmission = &modalSubmission{}
@@ -203,6 +210,9 @@ func (*modalSubmission) Type() string {
 	return "modal-submission"
 }
 
-func (*modalSubmission) Data() interface{} {
-	panic("unimplemented")
+func (ms *modalSubmission) Data() interface{} {
+	// TODO: This should be more well defined
+	return map[string]interface{}{
+		"next_modal": ms.NextModal,
+	}
 }

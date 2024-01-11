@@ -49,8 +49,11 @@ type joinChannelAction struct {
 }
 
 // Data implements action.
-func (*joinChannelAction) Data() interface{} {
-	panic("unimplemented")
+func (j *joinChannelAction) Data() interface{} {
+	// TODO: This should be more well-defined
+	return map[string]interface{}{
+		"channel_id": j.channelID,
+	}
 }
 
 // Type implements action.

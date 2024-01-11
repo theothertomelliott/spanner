@@ -17,6 +17,13 @@ type AppConfig struct {
 	BotToken string
 	AppToken string
 	Debug    bool
+
+	// AckOnError acknowledges messages when there is an error performing actions to prevent
+	// Slack from sending a retry. This will avoid actions being duplicated.
+	AckOnError bool
+
+	ActionInterceptor spanner.ActionInterceptor
+	FinishInterceptor spanner.FinishInterceptor
 }
 
 // NewApp creates a new slack app.
@@ -52,11 +59,23 @@ func NewApp(config AppConfig) (spanner.App, error) {
 
 	return newAppWithClient(&wrappedClient{
 		Client: client,
-	}, events), nil
+	}, config, events), nil
 }
 
-func newAppWithClient(client socketClient, slackEvents chan socketmode.Event) spanner.App {
+func newAppWithClient(client socketClient, config AppConfig, slackEvents chan socketmode.Event) spanner.App {
+	if config.ActionInterceptor == nil {
+		config.ActionInterceptor = func(ctx context.Context, action spanner.Action, next func(ctx context.Context) error) error {
+			return next(ctx)
+		}
+	}
+	if config.FinishInterceptor == nil {
+		config.FinishInterceptor = func(ctx context.Context, actions []spanner.Action, finish func(ctx context.Context) error) error {
+			return finish(ctx)
+		}
+	}
+
 	return &app{
+		config:        config,
 		client:        client,
 		slackEvents:   slackEvents,
 		combinedEvent: make(chan combinedEvent, 2),
@@ -79,11 +98,11 @@ func (w *wrappedClient) UpdateMessageWithMetadata(ctx context.Context, channelID
 type app struct {
 	client socketClient
 
+	config AppConfig
+
 	slackEvents   chan socketmode.Event
 	customEvents  chan *customEvent
 	combinedEvent chan combinedEvent
-
-	postEventFunc spanner.PostEventFunc
 }
 
 type combinedEvent struct {
@@ -130,35 +149,44 @@ func (s *app) Run(handler spanner.EventHandlerFunc) error {
 	}
 }
 
-func (s *app) SetPostEventFunc(f spanner.PostEventFunc) {
-	s.postEventFunc = f
-}
-
 func (s *app) handleEvent(ctx context.Context, handler spanner.EventHandlerFunc, ce combinedEvent) {
+	var (
+		req    socketmode.Request
+		hasReq bool
+	)
+	if evt := ce.ev; evt != nil && evt.Request != nil {
+		req = *evt.Request
+		hasReq = true
+	}
+
 	es := parseCombinedEvent(ctx, s.client, ce)
 	err := handler(ctx, es)
 	if err != nil {
-		return // Move on without acknowledging, will force a repeat
+		log.Printf("handling event: %v", err)
+		if s.config.AckOnError && hasReq {
+			log.Printf("Acknowledging failed event to prevent retries")
+			s.client.Ack(req, map[string]interface{}{})
+		}
+		return
 	}
-	var req socketmode.Request
 
-	if evt := ce.ev; evt != nil && evt.Request != nil {
-		req = *evt.Request
+	var finishFunc = func(ctx context.Context) error {
+		return es.finishEvent(ctx, s.config.ActionInterceptor, request{
+			req:    req,
+			es:     es,
+			hash:   es.hash,
+			client: s.client,
+		})
 	}
 
-	err = es.finishEvent(ctx, request{
-		req:    req,
-		es:     es,
-		hash:   es.hash,
-		client: s.client,
-	})
+	err = s.config.FinishInterceptor(ctx, es.state.actionQueue.Actions(), finishFunc)
 	if err != nil {
 		log.Printf("handling request: %v", renderSlackError(err))
+		if s.config.AckOnError && hasReq {
+			log.Printf("Acknowledging failed event to prevent retries")
+			s.client.Ack(req, map[string]interface{}{})
+		}
 		return // Move on without acknowledging, will force a repeat
-	}
-
-	if s.postEventFunc != nil {
-		s.postEventFunc(ctx)
 	}
 }
 

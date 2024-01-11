@@ -49,18 +49,21 @@ type updatedMessage struct {
 func (r *testClient) CreateApp() spanner.App {
 	testApp := newAppWithClient(
 		r,
+		AppConfig{
+			FinishInterceptor: r.FinishInterceptor,
+		},
 		r.Events,
 	)
-
-	testApp.SetPostEventFunc(r.PostEventFunc)
 
 	return testApp
 }
 
-// PostEventFunc provides a spanner.PostEventFunc to use with a test app
+// FinishInterceptor provides a spanner.FinishInterceptor to use with a test app
 // This is automatically applied by the CreateApp function
-func (r *testClient) PostEventFunc(ctx context.Context) {
+func (r *testClient) FinishInterceptor(ctx context.Context, _ []spanner.Action, finish func(context.Context) error) error {
+	err := finish(ctx)
 	r.postEvent <- struct{}{}
+	return err
 }
 
 // SendEventToApp sends an event to the connected app (created with CreateApp)

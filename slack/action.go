@@ -17,6 +17,14 @@ type actionQueue struct {
 	actions []action
 }
 
+func (a *actionQueue) Actions() []spanner.Action {
+	var out []spanner.Action
+	for _, action := range a.actions {
+		out = append(out, action)
+	}
+	return out
+}
+
 func (a *actionQueue) enqueue(ac action) {
 	a.actions = append(a.actions, ac)
 }

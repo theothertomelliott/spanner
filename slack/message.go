@@ -43,7 +43,11 @@ func (m *message) Type() string {
 }
 
 func (m *message) Data() interface{} {
-	panic("unimplemented")
+	// TODO: This should be more well-defined
+	return map[string]interface{}{
+		"channel_id": m.ChannelID,
+		"blocks":     m.blocks,
+	}
 }
 
 func (m *message) Channel(channelID string) {

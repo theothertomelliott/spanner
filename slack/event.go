@@ -87,17 +87,30 @@ func (e *event) SendMessage(channelID string) spanner.Message {
 	return e.state.SendMessage(channelID)
 }
 
-func (e *event) finishEvent(ctx context.Context, req request) error {
+func (e *event) finishEvent(
+	ctx context.Context,
+	actionInterceptor spanner.ActionInterceptor,
+	req request,
+) error {
 	var payload interface{}
 	for _, a := range e.state.actionQueue.actions {
-		newPayload, err := a.exec(ctx, req)
+		var (
+			newPayload interface{}
+			execFunc   = func(ctx context.Context) error {
+				var out error
+				newPayload, out = a.exec(ctx, req)
+				return out
+			}
+		)
+
+		err := actionInterceptor(ctx, a, execFunc)
 		if err != nil {
 			return fmt.Errorf("executing action: %w", err)
 		}
 		if newPayload != nil {
 			if payload != nil {
 				// TODO: Make this log configurable
-				log.Print("received multiple payloads, will use the last one one")
+				log.Print("received multiple payloads, will use the last one generated")
 			}
 			payload = newPayload
 		}

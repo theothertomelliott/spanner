@@ -33,8 +33,11 @@ type sendEphemeralMessageAction struct {
 }
 
 // Data implements action.
-func (*sendEphemeralMessageAction) Data() interface{} {
-	panic("unimplemented")
+func (e *sendEphemeralMessageAction) Data() interface{} {
+	// TODO: This should be more well-defined
+	return map[string]interface{}{
+		"text": e.text,
+	}
 }
 
 // Type implements action.

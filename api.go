@@ -7,17 +7,12 @@ import "context"
 type App interface {
 	Run(EventHandlerFunc) error
 	SendCustom(context.Context, CustomEvent) error
-	SetPostEventFunc(PostEventFunc)
 }
 
 // EventHandlerFunc represents a function that processes chat events from Spanner.
 // This function will be called multiple times and is responsible both for creating
 // UI elements and responding to the input received.
 type EventHandlerFunc func(context.Context, Event) error
-
-// PostEventFunc represents a function that is called after an event is procesed by a
-// Spanner app.
-type PostEventFunc func(context.Context)
 
 // Event represents an event received from the Slack platform.
 // It provides functions representing each type of event that can be received.

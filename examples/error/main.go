@@ -19,6 +19,14 @@ func main() {
 			BotToken:   botToken,
 			AppToken:   appToken,
 			AckOnError: true,
+			EventInterceptor: func(ctx context.Context, process func(context.Context)) {
+				log.Println("Event received")
+				process(ctx)
+			},
+			HandlerInterceptor: func(ctx context.Context, eventType string, handle func(context.Context) error) error {
+				log.Println("Handling event type: ", eventType)
+				return handle(ctx)
+			},
 			FinishInterceptor: func(ctx context.Context, actions []spanner.Action, finish func(context.Context) error) error {
 				if len(actions) > 0 {
 					var data []interface{}

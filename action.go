@@ -7,6 +7,10 @@ type Action interface {
 	Data() interface{}
 }
 
+type EventInterceptor func(ctx context.Context, process func(context.Context))
+
+type HandlerInterceptor func(ctx context.Context, eventType string, handle func(context.Context) error) error
+
 // ActionInterceptor intercepts a single action to allow for instrumentation.
 // The next function must be called to perform the action itself.
 // The configuration for the action cannot be changed.

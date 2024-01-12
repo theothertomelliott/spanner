@@ -22,8 +22,10 @@ type AppConfig struct {
 	// Slack from sending a retry. This will avoid actions being duplicated.
 	AckOnError bool
 
-	ActionInterceptor spanner.ActionInterceptor
-	FinishInterceptor spanner.FinishInterceptor
+	EventInterceptor   spanner.EventInterceptor
+	HandlerInterceptor spanner.HandlerInterceptor
+	ActionInterceptor  spanner.ActionInterceptor
+	FinishInterceptor  spanner.FinishInterceptor
 }
 
 // NewApp creates a new slack app.
@@ -63,6 +65,18 @@ func NewApp(config AppConfig) (spanner.App, error) {
 }
 
 func newAppWithClient(client socketClient, config AppConfig, slackEvents chan socketmode.Event) spanner.App {
+	if config.EventInterceptor == nil {
+		config.EventInterceptor = func(ctx context.Context, process func(context.Context)) {
+			process(ctx)
+		}
+	}
+
+	if config.HandlerInterceptor == nil {
+		config.HandlerInterceptor = func(ctx context.Context, eventType string, handle func(context.Context) error) error {
+			return handle(ctx)
+		}
+	}
+
 	if config.ActionInterceptor == nil {
 		config.ActionInterceptor = func(ctx context.Context, action spanner.Action, next func(ctx context.Context) error) error {
 			return next(ctx)
@@ -142,7 +156,11 @@ func (s *app) Run(handler spanner.EventHandlerFunc) error {
 			if ce.customEvent != nil && ce.customEvent.ctx != nil {
 				ctx = ce.customEvent.ctx
 			}
-			s.handleEvent(ctx, handler, ce)
+
+			process := func(ctx context.Context) {
+				s.handleEvent(ctx, handler, ce)
+			}
+			s.config.EventInterceptor(ctx, process)
 		case err := <-done:
 			return err
 		}
@@ -160,7 +178,12 @@ func (s *app) handleEvent(ctx context.Context, handler spanner.EventHandlerFunc,
 	}
 
 	es := parseCombinedEvent(ctx, s.client, ce)
-	err := handler(ctx, es)
+
+	doHandle := func(ctx context.Context) error {
+		return handler(ctx, es)
+	}
+
+	err := s.config.HandlerInterceptor(ctx, es.eventType, doHandle)
 	if err != nil {
 		log.Printf("handling event: %v", err)
 		if s.config.AckOnError && hasReq {

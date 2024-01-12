@@ -19,7 +19,8 @@ type eventPopulator interface {
 var _ spanner.Event = &event{}
 
 type event struct {
-	hash string
+	hash      string
+	eventType string
 
 	state eventState
 }
@@ -137,6 +138,7 @@ type eventPopulation struct {
 func parseCombinedEvent(ctx context.Context, client socketClient, ce combinedEvent) *event {
 	q := &actionQueue{}
 	out := &event{
+		eventType: "unknown",
 		state: eventState{
 			actionQueue: q,
 			MessageSender: &MessageSender{
@@ -174,6 +176,7 @@ func parseCombinedEvent(ctx context.Context, client socketClient, ce combinedEve
 	}()
 
 	if ce.customEvent != nil {
+		out.eventType = "custom"
 		out.state.Custom = ce.customEvent
 		return out
 	}
@@ -186,11 +189,13 @@ func parseCombinedEvent(ctx context.Context, client socketClient, ce combinedEve
 	}
 
 	if ev.Type == socketmode.EventTypeConnected {
+		out.eventType = "connected"
 		out.state.Connected = true
 		return out
 	}
 
 	if ev.Type == socketmode.EventTypeSlashCommand {
+		out.eventType = "slash_command"
 		cmd, ok := ev.Data.(slack.SlashCommand)
 		if !ok {
 			return out
@@ -220,6 +225,7 @@ func parseCombinedEvent(ctx context.Context, client socketClient, ce combinedEve
 	}
 
 	if ev.Type == socketmode.EventTypeEventsAPI {
+		out.eventType = "events_api"
 		eventsAPIEvent, ok := ev.Data.(slackevents.EventsAPIEvent)
 		if !ok {
 			return out
@@ -228,6 +234,7 @@ func parseCombinedEvent(ctx context.Context, client socketClient, ce combinedEve
 			innerEvent := eventsAPIEvent.InnerEvent
 			switch ev := innerEvent.Data.(type) {
 			case *slackevents.MessageEvent:
+				out.eventType = "message"
 				out.state.Metadata.ChannelInfo = &channel{
 					client:     client,
 					IDInternal: ev.Channel,
@@ -257,6 +264,7 @@ func parseCombinedEvent(ctx context.Context, client socketClient, ce combinedEve
 		out.hash = interactionCallbackEvent.Hash
 
 		if metadata := interactionCallbackEvent.View.PrivateMetadata; metadata != "" {
+			out.eventType = "view_submission"
 			err := json.Unmarshal([]byte(metadata), &out.state)
 			if err != nil {
 				panic(err)
@@ -275,6 +283,7 @@ func parseCombinedEvent(ctx context.Context, client socketClient, ce combinedEve
 			}
 
 		} else if eventMeta := interactionCallbackEvent.Message.Metadata; eventMeta.EventType == "bot_message" {
+			out.eventType = "message_action"
 			messageIndex := eventMeta.EventPayload["message_index"].(string)
 			err := json.Unmarshal([]byte(eventMeta.EventPayload["metadata"].(string)), &out.state)
 			if err != nil {

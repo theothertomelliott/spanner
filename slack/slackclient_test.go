@@ -50,7 +50,7 @@ func (r *testClient) CreateApp() spanner.App {
 	testApp := newAppWithClient(
 		r,
 		AppConfig{
-			FinishInterceptor: r.FinishInterceptor,
+			EventInterceptor: r.EventInterceptor,
 		},
 		r.Events,
 	)
@@ -58,12 +58,11 @@ func (r *testClient) CreateApp() spanner.App {
 	return testApp
 }
 
-// FinishInterceptor provides a spanner.FinishInterceptor to use with a test app
+// EventInterceptor provides a EventInterceptor to use with a test app
 // This is automatically applied by the CreateApp function
-func (r *testClient) FinishInterceptor(ctx context.Context, _ []spanner.Action, finish func(context.Context) error) error {
-	err := finish(ctx)
+func (r *testClient) EventInterceptor(ctx context.Context, process func(context.Context)) {
+	process(ctx)
 	r.postEvent <- struct{}{}
-	return err
 }
 
 // SendEventToApp sends an event to the connected app (created with CreateApp)

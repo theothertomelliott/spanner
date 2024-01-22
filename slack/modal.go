@@ -31,6 +31,16 @@ type modal struct {
 
 	submitText *string
 	closeText  *string
+
+	errFunc spanner.ErrorFunc
+}
+
+func (m *modal) ErrorFunc(ef spanner.ErrorFunc) {
+	m.errFunc = ef
+}
+
+func (m *modal) getErrorFunc() spanner.ErrorFunc {
+	return m.errFunc
 }
 
 type updateType int
@@ -175,6 +185,16 @@ type modalSubmission struct {
 	NextModal *modal `json:"next_modal"`
 
 	parent *modal
+
+	errFunc spanner.ErrorFunc
+}
+
+func (m *modalSubmission) ErrorFunc(ef spanner.ErrorFunc) {
+	m.errFunc = ef
+}
+
+func (m *modalSubmission) getErrorFunc() spanner.ErrorFunc {
+	return m.errFunc
 }
 
 func (m *modalSubmission) PushModal(title string) spanner.Modal {

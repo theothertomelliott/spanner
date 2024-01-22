@@ -9,7 +9,7 @@ import (
 )
 
 func TestReceiveSlashCommand(t *testing.T) {
-	client := newTestClient()
+	client := newTestClient([]string{"ABC123"})
 	testApp := client.CreateApp()
 
 	slashCommand := slack.SlashCommand{

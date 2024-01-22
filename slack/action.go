@@ -11,6 +11,8 @@ type action interface {
 
 	// exec performs and action and returns a payload to acknowledge the request as appropriate
 	exec(ctx context.Context, req request) (interface{}, error)
+
+	getErrorFunc() spanner.ErrorFunc
 }
 
 type actionQueue struct {

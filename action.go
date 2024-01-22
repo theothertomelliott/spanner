@@ -3,6 +3,8 @@ package spanner
 import "context"
 
 type Action interface {
+	HasError
+
 	Type() string
 	Data() interface{}
 }

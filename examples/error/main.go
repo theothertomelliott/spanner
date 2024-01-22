@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 
@@ -63,12 +64,22 @@ func main() {
 
 			replyGood := ev.SendMessage(msg.Channel().ID())
 			replyGood.PlainText("This message should succeed")
+			replyGood.ErrorFunc(func(ctx context.Context, ev spanner.ErrorEvent) {
+				panic("did not expect this message to fail")
+			})
 
 			replyBad := ev.SendMessage("invalid_channel")
 			replyBad.PlainText("This message will always fail to post")
+			replyBad.ErrorFunc(func(ctx context.Context, ev spanner.ErrorEvent) {
+				errorNotice := ev.SendMessage(msg.Channel().ID())
+				errorNotice.PlainText(fmt.Sprintf("There was an error sending a message: %v", ev.ReceiveError()))
+			})
 
 			replySkipped := ev.SendMessage(msg.Channel().ID())
 			replySkipped.PlainText("This message should be skipped because of the previous error")
+			replySkipped.ErrorFunc(func(ctx context.Context, ev spanner.ErrorEvent) {
+				panic("did not expect this message to fail")
+			})
 		}
 		return nil
 	})

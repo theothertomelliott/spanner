@@ -2,9 +2,17 @@ package spanner
 
 // BlockUI allows the creation of Slack blocks in a message or modal.
 type BlockUI interface {
+	NonInteractiveBlockUI
+	InteractiveBlockUI
+}
+
+type NonInteractiveBlockUI interface {
 	Header(message string)
 	PlainText(text string)
 	Markdown(text string)
+}
+
+type InteractiveBlockUI interface {
 	TextInput(label string, hint string, placeholder string) string
 	MultilineTextInput(label string, hint string, placeholder string) string
 	Divider()

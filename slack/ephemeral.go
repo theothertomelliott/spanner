@@ -30,6 +30,16 @@ var _ action = &sendEphemeralMessageAction{}
 
 type sendEphemeralMessageAction struct {
 	text string
+
+	errFunc spanner.ErrorFunc
+}
+
+func (e *sendEphemeralMessageAction) ErrorFunc(ef spanner.ErrorFunc) {
+	e.errFunc = ef
+}
+
+func (e *sendEphemeralMessageAction) getErrorFunc() spanner.ErrorFunc {
+	return e.errFunc
 }
 
 // Data implements action.

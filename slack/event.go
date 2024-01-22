@@ -18,6 +18,19 @@ type eventPopulator interface {
 
 var _ spanner.Event = &event{}
 
+func newEvent() *event {
+	q := &actionQueue{}
+	return &event{
+		eventType: "unknown",
+		state: eventState{
+			actionQueue: q,
+			MessageSender: &MessageSender{
+				actionQueue: q,
+			},
+		},
+	}
+}
+
 type event struct {
 	hash      string
 	eventType string
@@ -93,8 +106,18 @@ func (e *event) finishEvent(
 	actionInterceptor spanner.ActionInterceptor,
 	req request,
 ) error {
+	return finishEvent(ctx, actionInterceptor, req, e.state.actionQueue, true)
+}
+
+func finishEvent(
+	ctx context.Context,
+	actionInterceptor spanner.ActionInterceptor,
+	req request,
+	actionQueue *actionQueue,
+	shouldAck bool,
+) error {
 	var payload interface{}
-	for _, a := range e.state.actionQueue.actions {
+	for _, a := range actionQueue.actions {
 		var (
 			newPayload interface{}
 			execFunc   = func(ctx context.Context) error {
@@ -105,9 +128,23 @@ func (e *event) finishEvent(
 		)
 
 		err := actionInterceptor(ctx, a, execFunc)
+
 		if err != nil {
+			if ef := a.getErrorFunc(); ef != nil {
+				// Set up and run handler for error
+				errorEvent := newErrorEvent(err)
+				ef(ctx, errorEvent)
+
+				// Process actions from error event
+				err := finishEvent(ctx, actionInterceptor, req, errorEvent.actionQueue, false)
+				if err != nil {
+					return fmt.Errorf("executing error event: %w", err)
+				}
+			}
+
 			return fmt.Errorf("executing action: %w", err)
 		}
+
 		if newPayload != nil {
 			if payload != nil {
 				// TODO: Make this log configurable
@@ -117,11 +154,14 @@ func (e *event) finishEvent(
 		}
 	}
 
-	// Acknowledge the event
 	if payload == nil {
 		payload = map[string]interface{}{}
 	}
-	req.client.Ack(req.req, payload)
+
+	if shouldAck {
+		// Acknowledge the event
+		req.client.Ack(req.req, payload)
+	}
 
 	return nil
 }
@@ -136,16 +176,7 @@ type eventPopulation struct {
 }
 
 func parseCombinedEvent(ctx context.Context, client socketClient, ce combinedEvent) *event {
-	q := &actionQueue{}
-	out := &event{
-		eventType: "unknown",
-		state: eventState{
-			actionQueue: q,
-			MessageSender: &MessageSender{
-				actionQueue: q,
-			},
-		},
-	}
+	out := newEvent()
 
 	defer func() {
 		// Set clients in metadata

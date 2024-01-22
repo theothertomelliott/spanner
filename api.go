@@ -51,6 +51,7 @@ type SlashCommand interface {
 // It can be used to create blocks and handle submission or closing of the modal.
 type Modal interface {
 	BlockUI
+
 	SubmitButton(title string) ModalSubmission
 	CloseButton(title string) bool
 }
@@ -75,6 +76,14 @@ type EphemeralSender interface {
 // Messages are constructed using BlockUI commands.
 type Message interface {
 	BlockUI
+	HasError
+
+	Channel(channelID string)
+}
+
+type NonInteractiveMessage interface {
+	NonInteractiveBlockUI
+	HasError
 
 	Channel(channelID string)
 }

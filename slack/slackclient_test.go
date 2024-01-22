@@ -2,6 +2,7 @@ package slack
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/slack-go/slack"
@@ -10,11 +11,17 @@ import (
 	"github.com/theothertomelliott/spanner"
 )
 
-func newTestClient() *testClient {
+func newTestClient(validChannels []string) *testClient {
+	validChannelMap := make(map[string]struct{}, len(validChannels))
+	for _, c := range validChannels {
+		validChannelMap[c] = struct{}{}
+	}
+
 	return &testClient{
-		Events:    make(chan socketmode.Event),
-		stop:      make(chan struct{}),
-		postEvent: make(chan interface{}, 10),
+		Events:        make(chan socketmode.Event),
+		stop:          make(chan struct{}),
+		postEvent:     make(chan interface{}, 10),
+		validChannels: validChannelMap,
 	}
 }
 
@@ -23,6 +30,8 @@ type testClient struct {
 
 	messagesSent    []sentMessage
 	messagesUpdated []updatedMessage
+
+	validChannels map[string]struct{}
 
 	Events chan socketmode.Event
 
@@ -90,6 +99,9 @@ func (r *testClient) RunContext(context.Context) error {
 func (*testClient) Ack(req socketmode.Request, payload ...interface{}) {}
 
 func (c *testClient) SendMessageWithMetadata(ctx context.Context, channelID string, blocks []slack.Block, metadata slack.SlackMetadata) (string, string, string, error) {
+	if _, ok := c.validChannels[channelID]; !ok {
+		return "", "", "", fmt.Errorf("invalid channel: %s", channelID)
+	}
 	c.messagesSent = append(c.messagesSent, sentMessage{
 		channelID: channelID,
 		blocks:    blocks,

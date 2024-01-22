@@ -36,6 +36,16 @@ type message struct {
 	currentEventDepth   int
 	actionMessageTS     string
 	unsent              bool
+
+	errFunc spanner.ErrorFunc
+}
+
+func (m *message) ErrorFunc(ef spanner.ErrorFunc) {
+	m.errFunc = ef
+}
+
+func (m *message) getErrorFunc() spanner.ErrorFunc {
+	return m.errFunc
 }
 
 func (m *message) Type() string {

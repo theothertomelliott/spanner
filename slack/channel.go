@@ -46,6 +46,15 @@ var _ action = &joinChannelAction{}
 
 type joinChannelAction struct {
 	channelID string
+	errFunc   spanner.ErrorFunc
+}
+
+func (j *joinChannelAction) ErrorFunc(ef spanner.ErrorFunc) {
+	j.errFunc = ef
+}
+
+func (j *joinChannelAction) getErrorFunc() spanner.ErrorFunc {
+	return j.errFunc
 }
 
 // Data implements action.

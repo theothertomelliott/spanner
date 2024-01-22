@@ -15,7 +15,7 @@ import (
 // TestGettingStarted verifies that the code in examples/gettingstarted
 // interacts with Slack in the expected way
 func TestGettingStarted(t *testing.T) {
-	client := newTestClient()
+	client := newTestClient([]string{"ABC123"})
 	testApp := client.CreateApp()
 
 	go func() {

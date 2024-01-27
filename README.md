@@ -92,6 +92,91 @@ err = app.Run(func(ev spanner.Event) error {
 })
 ```
 
+## Event Lifecycle
+
+Events received by a Spanner app go through 2 phases: Handling and Finishing.
+
+*Handling* is when your handler function is called, which uses the event to specify how to
+respond. Calls to perform actions like `SendMessage` or `JoinChannel` are deferred until 
+the Finishing phase.
+
+*Finishing* is when actions are actually performed in the order they were declared in the Handling phase.
+
+## Custom Events
+
+You can send custom events to your Spanner event handler to allow for use cases like cron tasks or sending
+message in response to third-party events.
+
+The `SendCustom` function allows you to send an event with an arbitrary `map[string]interface{}` payload:
+
+```
+_ = app.SendCustom(context.Background(), slack.NewCustomEvent(map[string]interface{}{
+    "field1": "value1",
+}))
+```
+
+This event may then be received in your handler, and you can send messages in response:
+
+```
+if custom := ev.ReceiveCustomEvent(); custom != nil {
+    msg := ev.SendMessage("C062778EYRZ")
+    msg.Markdown(fmt.Sprintf("You sent %+v", custom.Body()))
+}
+```
+
+## Error Handling
+
+Because actions are not performed until after your handler function returns, error handling can be deferred
+by specifying a callback function. Messages and other action-related types have an `ErrorFunc` function that
+allows you to specify this callback:
+
+```
+badMessage := ev.SendMessage("invalid_channel")
+badMessage.PlainText("This message will always fail to post")
+badMessage.ErrorFunc(func(ctx context.Context, ev spanner.ErrorEvent) {
+    errorNotice := ev.SendMessage(msg.Channel().ID())
+    errorNotice.PlainText(fmt.Sprintf("There was an error sending a message: %v", ev.ReceiveError()))
+})
+```
+
+This function is called during the Finishing phase when an action fails, this effectively starts a new event
+cycle so you can send messages to report the error. When an action fails, all subsequent actions for the current
+event are aborted.
+
+## Interceptors
+
+You can specify interceptors to capture lifecycle events, which allows you to add common logging, tracing or other
+instrumentation to your event handling.
+
+The interceptors are specified as parameters of your app config:
+
+```
+slack.AppConfig{
+    BotToken:   botToken,
+    AppToken:   appToken,
+    // ...
+    EventInterceptor: func(ctx context.Context, process func(context.Context)) {
+        log.Println("Event received")
+        process(ctx)
+    },
+    HandlerInterceptor: func(ctx context.Context, eventType string, handle func(context.Context) error) error {
+        log.Println("Handling event type: ", eventType)
+        return handle(ctx)
+    },
+    FinishInterceptor: func(ctx context.Context, actions []spanner.Action, finish func(context.Context) error) error {
+        log.Printf("Finishing with %d actions", len(actions))
+        return finish(ctx)
+    },
+    ActionInterceptor: func(ctx context.Context, action spanner.Action, exec func(context.Context) error) error {
+        log.Println("Performing action: ", action.Type())
+        return exec(ctx)
+    },
+},
+```
+
+Interceptors cannot influence the specific handling done or actions performed, but it can abort a step in event handling
+by not calling the provided function.
+
 ## Examples
 
 A set of examples can be found in the [examples directory](./examples).

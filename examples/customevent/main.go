@@ -28,7 +28,7 @@ func main() {
 		"field1": "value1",
 	}))
 
-	err = app.Run(func(ctx context.Context, ev spanner.Event) error {
+	err = app.Run(func(ctx context.Context, ev spanner.Event) {
 		if custom := ev.ReceiveCustomEvent(); custom != nil {
 			log.Printf("Custom body: %+v", custom.Body())
 
@@ -37,7 +37,6 @@ func main() {
 			input := msg.TextInput("Say something!", "a", "b")
 			fmt.Println(input)
 		}
-		return nil
 	})
 	if err != nil {
 		log.Fatal(err)

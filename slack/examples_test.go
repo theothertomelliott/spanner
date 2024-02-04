@@ -78,7 +78,7 @@ func TestGettingStarted(t *testing.T) {
 }
 
 // handler should be kept in sync with README.md and examples/gettingstarted/main.go
-func handler(ctx context.Context, ev spanner.Event) error {
+func handler(ctx context.Context, ev spanner.Event) {
 	if msg := ev.ReceiveMessage(); msg != nil && msg.Text() == "hello" {
 		reply := ev.SendMessage(msg.Channel().ID())
 		reply.PlainText(fmt.Sprintf("Hello to you too: %v", msg.User()))
@@ -88,5 +88,4 @@ func handler(ctx context.Context, ev spanner.Event) error {
 			ev.SendMessage(msg.Channel().ID()).PlainText(fmt.Sprintf("You chose %q", letter))
 		}
 	}
-	return nil
 }

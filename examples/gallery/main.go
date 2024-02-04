@@ -25,7 +25,7 @@ func main() {
 	}
 
 	fmt.Println("Starting app")
-	err = app.Run(func(ctx context.Context, ev spanner.Event) error {
+	err = app.Run(func(ctx context.Context, ev spanner.Event) {
 		if ev.ReceiveConnected() {
 			log.Println("Connected - will do some setup here")
 			ev.JoinChannel("C062778EYRZ") // Test channel from Slack workspace used for QA
@@ -74,7 +74,6 @@ func main() {
 				summary.PlainText(fmt.Sprintf("Numbers: %v", numbers))
 			}
 		}
-		return nil
 	})
 	if err != nil {
 		log.Fatal(err)

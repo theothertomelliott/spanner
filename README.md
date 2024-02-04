@@ -41,7 +41,7 @@ if err != nil {
     log.Fatal(err)
 }
 
-err = app.Run(func(ev Event) error {
+err = app.Run(func(ctx context.Context, ev spanner.Event) {
     // TODO: Handle events here
     return nil
 })
@@ -59,12 +59,11 @@ sends an event to your app. In the example above, our app will ignore every even
 with messages coming in.
 
 ```
-err = app.Run(func(ev spanner.Event) error {
+err = app.Run(func(ctx context.Context, ev spanner.Event) {
     if msg := ev.ReceiveMessage(); msg != nil && msg.Text() == "hello" {
         reply := msg.SendMessage()
         reply.Text(fmt.Sprintf("Hello to you too: %v", msg.User()))
     }
-    return nil
 })
 ```
 
@@ -77,7 +76,7 @@ You can also easily add UI elements to your messages. Let's add a dropdown to ou
 with the option the user chooses.
 
 ```
-err = app.Run(func(ev spanner.Event) error {
+err = app.Run(func(ctx context.Context, ev spanner.Event) {
     if msg := ev.ReceiveMessage(); msg != nil && msg.Text() == "hello" {
 
         reply := ev.SendMessage()
@@ -88,7 +87,6 @@ err = app.Run(func(ev spanner.Event) error {
             ev.SendMessage().Text(fmt.Sprintf("You chose %q", letter))
         }
     }
-    return nil
 })
 ```
 
@@ -126,9 +124,12 @@ if custom := ev.ReceiveCustomEvent(); custom != nil {
 
 ## Error Handling
 
-Because actions are not performed until after your handler function returns, error handling can be deferred
-by specifying a callback function. Messages and other action-related types have an `ErrorFunc` function that
-allows you to specify this callback:
+The handler function may not return an error. If you call functions that may error out during handling, it
+is recommended to provide feedback to your user via messages and other interactive elements.
+
+Because actions are not performed until after your handler function returns, error handling for these actions
+can be deferred by specifying a callback function. Messages and other action-related types have an `ErrorFunc` 
+function that allows you to specify this callback:
 
 ```
 badMessage := ev.SendMessage("invalid_channel")
@@ -159,9 +160,9 @@ slack.AppConfig{
         log.Println("Event received")
         process(ctx)
     },
-    HandlerInterceptor: func(ctx context.Context, eventType string, handle func(context.Context) error) error {
+    HandlerInterceptor: func(ctx context.Context, eventType string, handle func(context.Context)) {
         log.Println("Handling event type: ", eventType)
-        return handle(ctx)
+        handle(ctx)
     },
     FinishInterceptor: func(ctx context.Context, actions []spanner.Action, finish func(context.Context) error) error {
         log.Printf("Finishing with %d actions", len(actions))

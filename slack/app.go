@@ -72,8 +72,8 @@ func newAppWithClient(client socketClient, config AppConfig, slackEvents chan so
 	}
 
 	if config.HandlerInterceptor == nil {
-		config.HandlerInterceptor = func(ctx context.Context, eventType string, handle func(context.Context) error) error {
-			return handle(ctx)
+		config.HandlerInterceptor = func(ctx context.Context, eventType string, handle func(context.Context)) {
+			handle(ctx)
 		}
 	}
 
@@ -179,19 +179,11 @@ func (s *app) handleEvent(ctx context.Context, handler spanner.EventHandlerFunc,
 
 	es := parseCombinedEvent(ctx, s.client, ce)
 
-	doHandle := func(ctx context.Context) error {
-		return handler(ctx, es)
+	doHandle := func(ctx context.Context) {
+		handler(ctx, es)
 	}
 
-	err := s.config.HandlerInterceptor(ctx, es.eventType, doHandle)
-	if err != nil {
-		log.Printf("handling event: %v", err)
-		if s.config.AckOnError && hasReq {
-			log.Printf("Acknowledging failed event to prevent retries")
-			s.client.Ack(req, map[string]interface{}{})
-		}
-		return
-	}
+	s.config.HandlerInterceptor(ctx, es.eventType, doHandle)
 
 	var finishFunc = func(ctx context.Context) error {
 		return es.finishEvent(ctx, s.config.ActionInterceptor, request{
@@ -202,7 +194,7 @@ func (s *app) handleEvent(ctx context.Context, handler spanner.EventHandlerFunc,
 		})
 	}
 
-	err = s.config.FinishInterceptor(ctx, es.state.actionQueue.Actions(), finishFunc)
+	err := s.config.FinishInterceptor(ctx, es.state.actionQueue.Actions(), finishFunc)
 	if err != nil {
 		log.Printf("handling request: %v", renderSlackError(err))
 		if s.config.AckOnError && hasReq {

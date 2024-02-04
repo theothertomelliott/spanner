@@ -22,7 +22,7 @@ func TestReceiveSlashCommand(t *testing.T) {
 		slashCommand,
 	))
 
-	testApp.Run(func(ctx context.Context, evt spanner.Event) error {
+	testApp.Run(func(ctx context.Context, evt spanner.Event) {
 		defer func() {
 			// Stop the client
 			close(client.stop)
@@ -32,7 +32,7 @@ func TestReceiveSlashCommand(t *testing.T) {
 		cmd := evt.ReceiveSlashCommand(slashCommand.Command)
 		if cmd == nil {
 			t.Errorf("expected a ReceiveSlashCommand event")
-			return nil
+			return
 		}
 		if cmd.Channel().ID() != slashCommand.ChannelID {
 			t.Errorf("expected channel id %q, got %q", slashCommand.ChannelID, cmd.Channel().ID())
@@ -40,8 +40,6 @@ func TestReceiveSlashCommand(t *testing.T) {
 		if cmd.User().ID() != slashCommand.UserID {
 			t.Errorf("expected user id %q, got %q", slashCommand.UserID, cmd.User().ID())
 		}
-
-		return nil
 	})
 
 }

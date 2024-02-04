@@ -16,9 +16,8 @@ func TestHandlerIsCalledForEachEvent(t *testing.T) {
 	results := make(chan struct{}, 2)
 
 	go func() {
-		testApp.Run(func(ctx context.Context, evt spanner.Event) error {
+		testApp.Run(func(ctx context.Context, evt spanner.Event) {
 			results <- struct{}{}
-			return nil
 		})
 	}()
 

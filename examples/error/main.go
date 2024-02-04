@@ -24,9 +24,9 @@ func main() {
 				log.Println("Event received")
 				process(ctx)
 			},
-			HandlerInterceptor: func(ctx context.Context, eventType string, handle func(context.Context) error) error {
+			HandlerInterceptor: func(ctx context.Context, eventType string, handle func(context.Context)) {
 				log.Println("Handling event type: ", eventType)
-				return handle(ctx)
+				handle(ctx)
 			},
 			FinishInterceptor: func(ctx context.Context, actions []spanner.Action, finish func(context.Context) error) error {
 				if len(actions) > 0 {
@@ -59,7 +59,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = app.Run(func(ctx context.Context, ev spanner.Event) error {
+	err = app.Run(func(ctx context.Context, ev spanner.Event) {
 		if msg := ev.ReceiveMessage(); msg != nil && msg.Text() == "hello" {
 
 			replyGood := ev.SendMessage(msg.Channel().ID())
@@ -81,7 +81,6 @@ func main() {
 				panic("did not expect this message to fail")
 			})
 		}
-		return nil
 	})
 	if err != nil {
 		log.Fatal(err)

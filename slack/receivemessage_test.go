@@ -19,7 +19,7 @@ func TestReceiveMessageContent(t *testing.T) {
 	}
 	client.SendEventToAppAsync(messageEvent(message))
 
-	testApp.Run(func(ctx context.Context, evt spanner.Event) error {
+	testApp.Run(func(ctx context.Context, evt spanner.Event) {
 		defer func() {
 			// Stop the client
 			close(client.stop)
@@ -29,7 +29,7 @@ func TestReceiveMessageContent(t *testing.T) {
 		msg := evt.ReceiveMessage()
 		if msg == nil {
 			t.Errorf("expected a ReceiveMessage event")
-			return nil
+			return
 		}
 		if msg.Channel().ID() != message.Channel {
 			t.Errorf("expected channel id %q, got %q", message.Channel, msg.Channel().ID())
@@ -40,8 +40,6 @@ func TestReceiveMessageContent(t *testing.T) {
 		if msg.Text() != message.Text {
 			t.Errorf("expected text %q, got %q", message.Text, msg.Text())
 		}
-
-		return nil
 	})
 
 }

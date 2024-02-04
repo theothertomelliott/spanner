@@ -12,7 +12,7 @@ type App interface {
 // EventHandlerFunc represents a function that processes chat events from Spanner.
 // This function will be called multiple times and is responsible both for creating
 // UI elements and responding to the input received.
-type EventHandlerFunc func(context.Context, Event) error
+type EventHandlerFunc func(context.Context, Event)
 
 // Event represents an event received from the Slack platform.
 // It provides functions representing each type of event that can be received.

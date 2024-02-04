@@ -48,7 +48,7 @@ func TestErrorHandling(t *testing.T) {
 	}
 }
 
-func handlerTestErrors(ctx context.Context, ev spanner.Event) error {
+func handlerTestErrors(ctx context.Context, ev spanner.Event) {
 	if msg := ev.ReceiveMessage(); msg != nil && msg.Text() == "hello" {
 		replyGood := ev.SendMessage(msg.Channel().ID())
 		replyGood.PlainText("This message should succeed")
@@ -69,5 +69,4 @@ func handlerTestErrors(ctx context.Context, ev spanner.Event) error {
 			panic("did not expect this message to fail")
 		})
 	}
-	return nil
 }

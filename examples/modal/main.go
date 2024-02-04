@@ -31,14 +31,14 @@ func main() {
 	}
 }
 
-func handler(ctx context.Context, ev spanner.Event) error {
+func handler(ctx context.Context, ev spanner.Event) {
 	if testSlash := ev.ReceiveSlashCommand("/testslash"); testSlash != nil {
 		fmt.Printf("Handling /testslash from user %v in channel %v\n", testSlash.User(), testSlash.Channel())
 		modal := testSlash.Modal("My Modal")
 
 		if modal.CloseButton("Cancel") {
 			fmt.Println("Closed")
-			return nil
+			return
 		}
 
 		modal.PlainText("Step 1: Choose a number")
@@ -95,5 +95,4 @@ func handler(ctx context.Context, ev spanner.Event) error {
 			}
 		}
 	}
-	return nil
 }

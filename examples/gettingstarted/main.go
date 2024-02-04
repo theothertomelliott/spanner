@@ -25,7 +25,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = app.Run(func(ctx context.Context, ev spanner.Event) error {
+	err = app.Run(func(ctx context.Context, ev spanner.Event) {
 		if msg := ev.ReceiveMessage(); msg != nil && msg.Text() == "hello" {
 
 			reply := ev.SendMessage(msg.Channel().ID())
@@ -36,7 +36,6 @@ func main() {
 				ev.SendMessage(msg.Channel().ID()).PlainText(fmt.Sprintf("You chose %q", letter))
 			}
 		}
-		return nil
 	})
 	if err != nil {
 		log.Fatal(err)
